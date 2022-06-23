@@ -1,1 +1,1 @@
-this is the date when start application
+application start date is 23/06/2022.

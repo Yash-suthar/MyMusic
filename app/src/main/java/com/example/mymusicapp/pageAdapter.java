@@ -20,6 +20,7 @@ public class pageAdapter extends FragmentPagerAdapter {
             case 0:return new frag1();
             case 1: return new frag2();
             case 2: return new frag3();
+            case 3: return new frag4();
             default:return null;
         }
 

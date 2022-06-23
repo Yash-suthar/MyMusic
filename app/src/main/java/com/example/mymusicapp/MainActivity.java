@@ -12,7 +12,7 @@ import com.google.android.material.tabs.TabLayout;
 
 public class MainActivity extends AppCompatActivity {
     private TabLayout tabLayout;
-    private TabItem tab1, tab2, tab3;
+    private TabItem tab1, tab2, tab3,tab4;
     private ViewPager viewPager;
     private pageAdapter pAdapter;
 
@@ -24,7 +24,7 @@ public class MainActivity extends AppCompatActivity {
         tab1 = findViewById(R.id.Tab1);
         tab2 = findViewById(R.id.Tab2);
         tab3 = findViewById(R.id.Tab3);
-
+        tab4 = findViewById(R.id.Tab4);
         viewPager = findViewById(R.id.viewPager);
         pAdapter= new pageAdapter(getSupportFragmentManager(),tabLayout.getTabCount());
         viewPager.setAdapter(pAdapter);

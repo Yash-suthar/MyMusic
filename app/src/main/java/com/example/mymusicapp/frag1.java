@@ -1,23 +1,28 @@
 package com.example.mymusicapp;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
+
+import android.app.Activity;
+import android.content.Context;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import android.os.Environment;
-import android.util.Log;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Adapter;
-import android.widget.ArrayAdapter;
+
+import android.widget.AdapterView;
+
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.PermissionToken;
@@ -29,6 +34,7 @@ import com.karumi.dexter.listener.single.PermissionListener;
 import java.io.File;
 import java.util.ArrayList;
 
+
 /**
  * A simple {@link Fragment} subclass.
  * Use the {@link frag1#newInstance} factory method to
@@ -36,7 +42,9 @@ import java.util.ArrayList;
  */
 public class frag1 extends Fragment {
     String[] items;
-
+    public static ArrayList<File> Song_Files;
+    public static int position;
+    SendDataInterface sendDataInterface;
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
@@ -51,15 +59,9 @@ public class frag1 extends Fragment {
         // Required empty public constructor
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment frag1.
-     */
-    // TODO: Rename and change types and number of parameters
+    public interface SendDataInterface{
+        public void SendData(ArrayList<File> files,int position);
+    }
     public static frag1 newInstance(String param1, String param2) {
         frag1 fragment = new frag1();
         Bundle args = new Bundle();
@@ -90,16 +92,25 @@ public class frag1 extends Fragment {
             @Override
             public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
                 ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
-
+                Song_Files = all_songs;
                 items = new String[all_songs.size()];
 
                 for (int i = 0; i < all_songs.size(); i++) {
                     items[i] = all_songs.get(i).getName().toString().replace(".mp3", "");
-                    Log.d("stringtab", items[i]);
+//                    Log.d("stringtab", items[i]);
                 }
-                ArrayAdapter<String> Adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1,items);
+//                ArrayAdapter<String> Adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1,items);
                 custome_Adapter customeAdapter = new custome_Adapter();
                 listView.setAdapter(customeAdapter);
+                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                        position = i;
+                        Toast.makeText(getContext(), "position clicked", Toast.LENGTH_SHORT).show();
+                        sendDataInterface.SendData(all_songs,i);
+
+                    }
+                });
             }
 
             @Override
@@ -116,6 +127,16 @@ public class frag1 extends Fragment {
         return view ;
     }
 
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        Activity activity = (Activity)context;
+        try {
+            sendDataInterface=(SendDataInterface) activity;
+        }catch(RuntimeException a){
+           throw new RuntimeException(activity.toString()+"Must implement");
+        }
+    }
 
     public ArrayList<File> fetch_Song(File file) {
         ArrayList<File> arrayList = new ArrayList<>();
@@ -139,21 +160,21 @@ public class frag1 extends Fragment {
     }
 
 
-    public void makeListView() {
-        ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
-
-        items = new String[all_songs.size()];
-
-        for (int i = 0; i < all_songs.size(); i++) {
-            items[i] = all_songs.get(i).getName().toString().replace(".mp3", "");
-            Log.d("stringtab", items[i]);
-        }
+//    public void makeListView() {
+//        ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
+//
+//        items = new String[all_songs.size()];
+//
+//        for (int i = 0; i < all_songs.size(); i++) {
+//            items[i] = all_songs.get(i).getName().toString().replace(".mp3", "");
+//            Log.d("stringtab", items[i]);
+//        }
 
 //       custome_Adapter adapter = new custome_Adapter();
 //
 //        listView.setAdapter(adapter);
 
-    }
+//    }
 
     public class custome_Adapter extends BaseAdapter {
         @Override
@@ -179,6 +200,26 @@ public class frag1 extends Fragment {
             textView.setText(items[i]);
 
             return views;
+        }
+    }
+    public class SongOperation {
+        MediaPlayer mediaPlayer = new MediaPlayer();
+        public SongOperation(){
+
+        }
+        Uri uri;
+        public void playSong(Uri uri){
+            this.uri = uri;
+            if (mediaPlayer!=null){
+                mediaPlayer.start();
+                mediaPlayer.release();
+            }
+
+            mediaPlayer.start();
+
+        }
+        public void pauseSong(){
+
         }
     }
 }

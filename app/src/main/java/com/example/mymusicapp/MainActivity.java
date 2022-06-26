@@ -1,18 +1,20 @@
 package com.example.mymusicapp;
 
-import static android.R.anim.fade_in;
+
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager.widget.ViewPager;
+
+import android.Manifest;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabItem;
 import com.google.android.material.tabs.TabLayout;
+
 
 public class MainActivity extends AppCompatActivity {
     private TabLayout tabLayout;
@@ -46,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
         viewPager = findViewById(R.id.viewPager);
         pAdapter= new pageAdapter(getSupportFragmentManager(),tabLayout.getTabCount());
         viewPager.setAdapter(pAdapter);
+
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
@@ -73,33 +76,27 @@ public class MainActivity extends AppCompatActivity {
         playBtn1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (play_pause_flag==0){
-                    playBtn1.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
-                    playBtn.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
-                    play_pause_flag=1;
-                }else{
-                    playBtn1.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
-                    playBtn.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
-                    play_pause_flag=0;
-                }
+               play_button_change();
 
             }
         });
         playBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (play_pause_flag==0){
-                    playBtn1.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
-                    playBtn.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
-                    play_pause_flag=1;
-                }else{
-                    playBtn1.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
-                    playBtn.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
-                    play_pause_flag=0;
-                }
+                play_button_change();
             }
         });
     }
 
-
+    public void play_button_change(){
+        if (play_pause_flag==0){
+            playBtn1.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
+            playBtn.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
+            play_pause_flag=1;
+        }else{
+            playBtn1.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
+            playBtn.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
+            play_pause_flag=0;
+        }
+    }
 }

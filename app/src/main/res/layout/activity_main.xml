@@ -21,7 +21,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:tabBackground="@color/teal_700"
         app:tabIndicatorColor="@color/black"
-        app:tabMode="scrollable"
+
         app:tabSelectedTextColor="@color/white"
         app:tabTextColor="@color/black">
 

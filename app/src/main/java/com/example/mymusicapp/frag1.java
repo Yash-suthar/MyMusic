@@ -93,6 +93,7 @@ public class frag1 extends Fragment {
             public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
                 ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
                 Song_Files = all_songs;
+                sendDataInterface.SendData(all_songs,0);
                 items = new String[all_songs.size()];
 
                 for (int i = 0; i < all_songs.size(); i++) {

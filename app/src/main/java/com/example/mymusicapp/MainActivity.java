@@ -30,6 +30,7 @@ import java.io.File;
 import java.sql.Time;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 
@@ -41,14 +42,14 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     private pageAdapter pAdapter;
     private BottomSheetBehavior behavior;
     private LinearLayout lv;
-    private ImageView nextBtn1,playBtn1,previousBtn,nextBtn,playBtn,bottomImageView,musicIcon;
-    private int play_pause_flag=0;
+    private ImageView nextBtn1,playBtn1,previousBtn,nextBtn,playBtn,bottomImageView,musicIcon,loopList;
+    private int play_pause_flag=0,loop_flag=0;
     private ConstraintLayout cl1,cl2;
     static MediaPlayer mediaPlayer;
     private int songPosition;
     private ArrayList<File> SongList;
     private SeekBar seekBar;
-    TextView startTime, EndTime,bottomTextView;
+    TextView startTime, EndTime,bottomTextView,bottomTextView1;
     Handler handler;
     Runnable runnable;
     MediaMetadataRetriever retriever ;
@@ -58,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         setContentView(R.layout.activity_main);
         bottomImageView = findViewById(R.id.bottomImageView);
         bottomTextView = findViewById(R.id.bottomViewText);
+        bottomTextView1 = findViewById(R.id.bottomViewText1);
+        loopList = findViewById(R.id.loopList);
         musicIcon = findViewById(R.id.musicIcon);
         cl1 = findViewById(R.id.constraint_layout1);
         cl2 = findViewById(R.id.constraint_layout2);
@@ -83,7 +86,21 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         pAdapter= new pageAdapter(getSupportFragmentManager(),tabLayout.getTabCount());
         viewPager.setAdapter(pAdapter);
         handler = new Handler();
-
+        loopList.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (loop_flag == 0){
+                    loopList.setImageResource(R.drawable.ic_baseline_repeat_one_24);
+                    loop_flag=1;
+                }else if (loop_flag==1){
+                    loopList.setImageResource(R.drawable.ic_baseline_shuffle_24);
+                    loop_flag=2;
+                }else{
+                    loopList.setImageResource(R.drawable.ic_baseline_repeat_24);
+                    loop_flag=0;
+                }
+            }
+        });
 
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
@@ -153,19 +170,36 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         nextBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                StartTheSong(++songPosition);
+                if (songPosition==SongList.size()-1){
+                    songPosition=0;
+                    StartTheSong(songPosition);
+                }else{
+                    StartTheSong(++songPosition);
+                }
             }
         });
         nextBtn1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                StartTheSong(++songPosition);
+                if (songPosition==SongList.size()-1){
+                    songPosition=0;
+                    StartTheSong(songPosition);
+                }else{
+                    StartTheSong(++songPosition);
+                }
+
             }
         });
         previousBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                StartTheSong(--songPosition);
+                if (songPosition==0){
+                    songPosition=SongList.size()-1;
+                    StartTheSong(songPosition);
+                }else{
+                    StartTheSong(--songPosition);
+                }
+
             }
         });
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -201,13 +235,13 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 //    }
     public void play_button_change(){
         if (play_pause_flag==0){
-            playBtn1.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
-            playBtn.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
+            playBtn1.setImageResource(R.drawable.pause30dp);
+            playBtn.setImageResource(R.drawable.pausebutton);
             play_pause_flag=1;
             mediaPlayer.start();
         }else{
-            playBtn1.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
-            playBtn.setImageResource(R.drawable._695059_music_play_play_button_player_icon);
+            playBtn1.setImageResource(R.drawable.play30dp);
+            playBtn.setImageResource(R.drawable.playbutton);
             play_pause_flag=0;
             mediaPlayer.pause();
         }
@@ -223,8 +257,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         mediaPlayer.start();
         setAlbum();
         bottomTextView.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
-        playBtn1.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
-        playBtn.setImageResource(R.drawable._695047_media_player_music_pause_player_icon);
+        bottomTextView1.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
+        playBtn1.setImageResource(R.drawable.pause30dp);
+        playBtn.setImageResource(R.drawable.pausebutton);
         play_pause_flag=1;
         mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
@@ -232,6 +267,26 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                  updateSeekBar();
                  seekBar.setMax(mediaPlayer.getDuration());
                  EndTime.setText(""+TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getDuration())+":"+TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getDuration())%60);
+            }
+        });
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mediaPlayer) {
+                if (loop_flag==0){
+                    if (songPosition==SongList.size()-1){
+                        songPosition=0;
+                        StartTheSong(songPosition);
+                    }else{
+                        StartTheSong(++songPosition);
+                    }
+
+                }else if(loop_flag==1){
+                    StartTheSong(songPosition);
+                }else{
+                    Random random = new Random();
+                    songPosition = random.nextInt(SongList.size());
+                    StartTheSong(songPosition);
+                }
             }
         });
     }
@@ -242,6 +297,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         StartTheSong(position);
 
     }
+
 
     private void setAlbum() {
         retriever = new MediaMetadataRetriever();
@@ -266,10 +322,6 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     public void updateSeekBar(){
         seekBar.setProgress(mediaPlayer.getCurrentPosition());
         startTime.setText(""+TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getCurrentPosition())+":"+TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getCurrentPosition())%60);
-        if (mediaPlayer.getCurrentPosition() == mediaPlayer.getDuration()){
-            StartTheSong(++songPosition);
-        }
-
         runnable = new Runnable() {
             @Override
             public void run() {

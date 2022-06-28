@@ -7,7 +7,7 @@
     tools:context=".frag1">
 
     <!-- TODO: Update blank fragment layout -->
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
 
         android:id="@+id/SongListView"
         android:layout_width="0dp"

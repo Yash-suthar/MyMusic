@@ -21,7 +21,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:tabBackground="@color/teal_700"
         app:tabIndicatorColor="@color/black"
-
+        app:tabMode="scrollable"
         app:tabSelectedTextColor="@color/white"
         app:tabTextColor="@color/black">
 
@@ -29,7 +29,8 @@
             android:id="@+id/Tab1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="songs" />
+            android:text="songs"
+            />
 
         <com.google.android.material.tabs.TabItem
             android:id="@+id/Tab2"
@@ -55,7 +56,7 @@
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-
+        android:layout_marginBottom="160px"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"

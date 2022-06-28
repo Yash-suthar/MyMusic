@@ -10,6 +10,8 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.os.Environment;
 
@@ -21,6 +23,7 @@ import android.widget.AdapterView;
 
 import android.widget.BaseAdapter;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,10 +43,12 @@ import java.util.ArrayList;
  * Use the {@link frag1#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class frag1 extends Fragment {
+public class frag1 extends Fragment  {
     String[] items;
     public static ArrayList<File> Song_Files;
-    public static int position;
+    public static int changerowindex = MainActivity.songPosition;
+//    public static int position;
+    private RecyclerViewAdapter recyclerViewAdapter;
     SendDataInterface sendDataInterface;
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -59,8 +64,9 @@ public class frag1 extends Fragment {
         // Required empty public constructor
     }
 
+
     public interface SendDataInterface{
-        public void SendData(ArrayList<File> files,int position);
+        public void SendData(ArrayList<File> files,int position,boolean flag,RecyclerViewAdapter recycler);
     }
     public static frag1 newInstance(String param1, String param2) {
         frag1 fragment = new frag1();
@@ -86,32 +92,36 @@ public class frag1 extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_frag1, container, false);
-        ListView listView = view.findViewById(R.id.SongListView);
+        RecyclerView listView = view.findViewById(R.id.SongListView);
+        listView.setHasFixedSize(true);
+        listView.setLayoutManager(new LinearLayoutManager(this.getContext()));
         // Inflate the layout for this fragment
         Dexter.withContext(getContext()).withPermission(Manifest.permission.READ_EXTERNAL_STORAGE).withListener(new PermissionListener() {
             @Override
             public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
                 ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
                 Song_Files = all_songs;
-                sendDataInterface.SendData(all_songs,0);
+                sendDataInterface.SendData(all_songs,0,false,recyclerViewAdapter);
                 items = new String[all_songs.size()];
 
                 for (int i = 0; i < all_songs.size(); i++) {
                     items[i] = all_songs.get(i).getName().toString().replace(".mp3", "");
 //                    Log.d("stringtab", items[i]);
                 }
+                recyclerViewAdapter = new RecyclerViewAdapter(getContext(),Song_Files);
+                listView.setAdapter(recyclerViewAdapter);
 //                ArrayAdapter<String> Adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1,items);
-                custome_Adapter customeAdapter = new custome_Adapter();
-                listView.setAdapter(customeAdapter);
-                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                        position = i;
-                        Toast.makeText(getContext(), "position clicked", Toast.LENGTH_SHORT).show();
-                        sendDataInterface.SendData(all_songs,i);
-
-                    }
-                });
+//                custome_Adapter customeAdapter = new custome_Adapter();
+//                listView.setAdapter(customeAdapter);
+//                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+//                    @Override
+//                    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+//                        position = i;
+//                        Toast.makeText(getContext(), "position clicked", Toast.LENGTH_SHORT).show();
+//                        sendDataInterface.SendData(all_songs,i);
+//
+//                    }
+//                });
             }
 
             @Override
@@ -177,52 +187,84 @@ public class frag1 extends Fragment {
 
 //    }
 
-    public class custome_Adapter extends BaseAdapter {
-        @Override
-        public int getCount() {
-            return items.length;
-        }
+//    public class custome_Adapter extends BaseAdapter {
+//        @Override
+//        public int getCount() {
+//            return items.length;
+//        }
+//
+//        @Override
+//        public Object getItem(int i) {
+//            return null;
+//        }
+//
+//        @Override
+//        public long getItemId(int i) {
+//            return 0;
+//        }
+//
+//        @Override
+//        public View getView(int i, View view, ViewGroup viewGroup) {
+//            View views = getLayoutInflater().inflate(R.layout.list_view, null);
+//            TextView textView = views.findViewById(R.id.ListSongText);
+//            textView.setSelected(true);
+//            textView.setText(items[i]);
+//
+//            return views;
+//        }
+//    }
+    public class RecyclerViewAdapter extends RecyclerView.Adapter {
+        int row_index=MainActivity.songPosition;
+      public Context context;
+      public ArrayList<File> songList;
+    public RecyclerViewAdapter(Context context, ArrayList<File> song_files) {
+        this.context = context;
+        this.songList = song_files;
+    }
+    @NonNull
+    @Override
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_view,parent,false);
+        return new ViewHolder(view) ;
+    }
 
-        @Override
-        public Object getItem(int i) {
-            return null;
-        }
-
-        @Override
-        public long getItemId(int i) {
-            return 0;
-        }
-
-        @Override
-        public View getView(int i, View view, ViewGroup viewGroup) {
-            View views = getLayoutInflater().inflate(R.layout.list_view, null);
-            TextView textView = views.findViewById(R.id.ListSongText);
-            textView.setSelected(true);
-            textView.setText(items[i]);
-
-            return views;
+    @Override
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        TextView Listsongtext = holder.itemView.findViewById(R.id.ListSongText);
+        Listsongtext.setText(songList.get(position).getName().toString().replace(".mp3",""));
+        RelativeLayout relativeLayout = holder.itemView.findViewById(R.id.relativeLayout);
+        if (MainActivity.songPosition==position){
+            relativeLayout.setBackgroundResource(R.color.white);
+        }else{
+            relativeLayout.setBackgroundResource(R.color.black);
         }
     }
-    public class SongOperation {
-        MediaPlayer mediaPlayer = new MediaPlayer();
-        public SongOperation(){
+
+    @Override
+    public int getItemCount() {
+        return songList.size();
+    }
+
+
+
+
+    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+
+        public ViewHolder(@NonNull View itemView) {
+            super(itemView);
+            itemView.setOnClickListener(this);
 
         }
-        Uri uri;
-        public void playSong(Uri uri){
-            this.uri = uri;
-            if (mediaPlayer!=null){
-                mediaPlayer.start();
-                mediaPlayer.release();
-            }
 
-            mediaPlayer.start();
-
-        }
-        public void pauseSong(){
-
+        @Override
+        public void onClick(View view) {
+//            row_index = this.getPosition();
+            sendDataInterface.SendData(songList,this.getPosition(),true,recyclerViewAdapter);
+            notifyDataSetChanged();
         }
     }
+}
+
 }
 
 

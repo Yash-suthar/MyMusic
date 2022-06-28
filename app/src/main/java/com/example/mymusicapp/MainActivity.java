@@ -9,6 +9,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
@@ -16,6 +17,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.PersistableBundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -46,13 +48,25 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     private int play_pause_flag=0,loop_flag=0;
     private ConstraintLayout cl1,cl2;
     static MediaPlayer mediaPlayer;
-    private int songPosition;
+    public static int songPosition,seekbarPosition;
     private ArrayList<File> SongList;
     private SeekBar seekBar;
     TextView startTime, EndTime,bottomTextView,bottomTextView1;
     Handler handler;
     Runnable runnable;
     MediaMetadataRetriever retriever ;
+    frag1.RecyclerViewAdapter recyclerViewAdapter;
+
+    @Override
+    protected void onPause() {
+        SharedPreferences sharedPreferences = getSharedPreferences("demo",MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putInt("songPosition",songPosition);
+        editor.putInt("seekbarPosition",mediaPlayer.getCurrentPosition());
+        editor.apply();
+        super.onPause();
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,6 +100,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         pAdapter= new pageAdapter(getSupportFragmentManager(),tabLayout.getTabCount());
         viewPager.setAdapter(pAdapter);
         handler = new Handler();
+
         loopList.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -120,6 +135,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             }
         });
         viewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
+        viewPager.setOffscreenPageLimit(4);
         lv.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -172,9 +188,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             public void onClick(View view) {
                 if (songPosition==SongList.size()-1){
                     songPosition=0;
-                    StartTheSong(songPosition);
+                    StartTheSong(songPosition,false);
                 }else{
-                    StartTheSong(++songPosition);
+                    StartTheSong(++songPosition,false);
                 }
             }
         });
@@ -183,9 +199,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             public void onClick(View view) {
                 if (songPosition==SongList.size()-1){
                     songPosition=0;
-                    StartTheSong(songPosition);
+                    StartTheSong(songPosition,false);
                 }else{
-                    StartTheSong(++songPosition);
+                    StartTheSong(++songPosition,false);
                 }
 
             }
@@ -195,9 +211,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             public void onClick(View view) {
                 if (songPosition==0){
                     songPosition=SongList.size()-1;
-                    StartTheSong(songPosition);
+                    StartTheSong(songPosition,false);
                 }else{
-                    StartTheSong(--songPosition);
+                    StartTheSong(--songPosition,false);
                 }
 
             }
@@ -247,11 +263,17 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         }
     }
 
-    public void StartTheSong(int position){
+    public void StartTheSong(int position,boolean flag){
         if (mediaPlayer!=null){
             mediaPlayer.start();
             mediaPlayer.release();
         }
+        if (recyclerViewAdapter!=null){
+            recyclerViewAdapter.notifyDataSetChanged();
+        }
+
+//        recyclerViewAdapter.notifyItemChanged(songPosition);
+
         Uri uri = Uri.parse(SongList.get(position).toString());
         mediaPlayer = MediaPlayer.create(getApplicationContext(),uri);
         mediaPlayer.start();
@@ -264,6 +286,12 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
+                if (flag){
+                    mediaPlayer.seekTo(seekbarPosition);
+                    mediaPlayer.pause();
+                    playBtn.setImageResource(R.drawable.playbutton);
+                    playBtn1.setImageResource(R.drawable.play30dp);
+                }
                  updateSeekBar();
                  seekBar.setMax(mediaPlayer.getDuration());
                  EndTime.setText(""+TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getDuration())+":"+TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getDuration())%60);
@@ -275,26 +303,37 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 if (loop_flag==0){
                     if (songPosition==SongList.size()-1){
                         songPosition=0;
-                        StartTheSong(songPosition);
+                        StartTheSong(songPosition,false);
                     }else{
-                        StartTheSong(++songPosition);
+                        StartTheSong(++songPosition,false);
                     }
 
                 }else if(loop_flag==1){
-                    StartTheSong(songPosition);
+                    StartTheSong(songPosition,false);
                 }else{
                     Random random = new Random();
                     songPosition = random.nextInt(SongList.size());
-                    StartTheSong(songPosition);
+                    StartTheSong(songPosition,false);
                 }
             }
         });
     }
     @Override
-    public void SendData(ArrayList<File> files, int position) {
+    public void SendData(ArrayList<File> files, int position, boolean flag, frag1.RecyclerViewAdapter recycler) {
         SongList = files;
-        songPosition = position;
-        StartTheSong(position);
+        recyclerViewAdapter=recycler;
+        SharedPreferences sharedPreferences = getSharedPreferences("demo",MODE_PRIVATE);
+        songPosition =sharedPreferences.getInt("songPosition",0);
+        seekbarPosition=sharedPreferences.getInt("seekbarPosition",0);
+        if (flag){
+            songPosition = position;
+            StartTheSong(songPosition,false);
+        }else{
+            StartTheSong(songPosition,true);
+        }
+
+
+
 
     }
 
@@ -337,7 +376,10 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     if (behavior.getState() == behavior.STATE_EXPANDED){
         behavior.setState(behavior.STATE_COLLAPSED);
     }else{
-        super.onBackPressed();
+        moveTaskToBack(true);
+
     }
     }
+
+
 }

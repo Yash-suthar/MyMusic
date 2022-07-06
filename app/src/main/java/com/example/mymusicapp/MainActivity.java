@@ -8,17 +8,28 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.fragment.app.FragmentManager;
 import androidx.viewpager.widget.ViewPager;
 
+import android.accessibilityservice.AccessibilityService;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
+import android.os.FileUtils;
 import android.os.Handler;
 import android.os.PersistableBundle;
+import android.text.format.Formatter;
+import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
@@ -28,12 +39,23 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabItem;
 import com.google.android.material.tabs.TabLayout;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.Time;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import eightbitlab.com.blurview.BlurView;
+import eightbitlab.com.blurview.RenderScriptBlur;
 
 
 public class MainActivity extends AppCompatActivity implements frag1.SendDataInterface {
@@ -44,9 +66,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     private pageAdapter pAdapter;
     private BottomSheetBehavior behavior;
     private LinearLayout lv;
-    private ImageView nextBtn1,playBtn1,previousBtn,nextBtn,playBtn,bottomImageView,musicIcon,loopList;
+    private ImageView nextBtn1,playBtn1,previousBtn,nextBtn,playBtn,bottomImageView,musicIcon,loopList,sync_menu;
     private int play_pause_flag=0,loop_flag=0;
-    private ConstraintLayout cl1,cl2;
+    private ConstraintLayout cl1,cl2,cl;
     static MediaPlayer mediaPlayer;
     public static int songPosition,seekbarPosition;
     private ArrayList<File> SongList;
@@ -56,13 +78,19 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     Runnable runnable;
     MediaMetadataRetriever retriever ;
     frag1.RecyclerViewAdapter recyclerViewAdapter;
+    BlurView blurView;
+    Set<String> songList;
 
     @Override
     protected void onPause() {
         SharedPreferences sharedPreferences = getSharedPreferences("demo",MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putInt("songPosition",songPosition);
-        editor.putInt("seekbarPosition",mediaPlayer.getCurrentPosition());
+        if (mediaPlayer!=null) {
+            editor.putInt("seekbarPosition", mediaPlayer.getCurrentPosition());
+        }else{
+            editor.putInt("seekbarPosition",0);
+        }
         editor.apply();
         super.onPause();
     }
@@ -71,11 +99,14 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        blurView = findViewById(R.id.BlurView);
         bottomImageView = findViewById(R.id.bottomImageView);
         bottomTextView = findViewById(R.id.bottomViewText);
         bottomTextView1 = findViewById(R.id.bottomViewText1);
+        sync_menu = findViewById(R.id.sync);
         loopList = findViewById(R.id.loopList);
         musicIcon = findViewById(R.id.musicIcon);
+        cl = findViewById(R.id.behavior);
         cl1 = findViewById(R.id.constraint_layout1);
         cl2 = findViewById(R.id.constraint_layout2);
         tabLayout= findViewById(R.id.tabLayout1);
@@ -92,15 +123,36 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         previousBtn=findViewById(R.id.PreviousBtn);
         lv = findViewById(R.id.linearLayout1);
         View bottomsheet = findViewById(R.id.behavior);
+
         behavior = BottomSheetBehavior.from(bottomsheet);
+
         seekBar = findViewById(R.id.seekBar);
         behavior.setPeekHeight(160);
+
 //        behavior.setHideable(true);
         viewPager = findViewById(R.id.viewPager);
         pAdapter= new pageAdapter(getSupportFragmentManager(),tabLayout.getTabCount());
         viewPager.setAdapter(pAdapter);
         handler = new Handler();
+        blurbackground();
 
+        AccessibilityService applicationContext = null;
+        WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
+        String ipAddress = Formatter.formatIpAddress(wifiInfo.getIpAddress());
+        Log.d("wifiip",ipAddress);
+
+        sync_menu.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+//                try {
+//                    TcpConnectionManager tc = new TcpConnectionManager(InetAddress.getByName("192.168.64.227"));
+//                } catch (UnknownHostException e) {
+//                    e.printStackTrace();
+//                }
+                TcpConnectionManager tc = new TcpConnectionManager();
+            }
+        });
         loopList.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -240,7 +292,28 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 
     }
 
-//    public static void playSong(){
+    private void blurbackground() {
+        float radius = 20f;
+
+        View decorView = getWindow().getDecorView();
+        // ViewGroup you want to start blur from. Choose root as close to BlurView in hierarchy as possible.
+        ViewGroup rootView = (ViewGroup) decorView.findViewById(android.R.id.content);
+
+        // Optional:
+        // Set drawable to draw in the beginning of each blurred frame.
+        // Can be used in case your layout has a lot of transparent space and your content
+        // gets a too low alpha value after blur is applied.
+        Drawable windowBackground = decorView.getBackground();
+
+        blurView.setupWith(rootView)
+                .setFrameClearDrawable(windowBackground) // Optional
+                .setBlurAlgorithm(new RenderScriptBlur(this))
+                .setBlurRadius(radius)
+                .setBlurAutoUpdate(true);
+    }
+
+
+    //    public static void playSong(){
 //        if (mediaPlayer!=null){
 //            mediaPlayer.start();
 //            mediaPlayer.release();
@@ -275,20 +348,21 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 //        recyclerViewAdapter.notifyItemChanged(songPosition);
 
         Uri uri = Uri.parse(SongList.get(position).toString());
+        Log.d("mtagh",uri.toString());
         mediaPlayer = MediaPlayer.create(getApplicationContext(),uri);
         mediaPlayer.start();
-        setAlbum();
-        bottomTextView.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
-        bottomTextView1.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
         playBtn1.setImageResource(R.drawable.pause30dp);
         playBtn.setImageResource(R.drawable.pausebutton);
-        play_pause_flag=1;
+        play_pause_flag = 1;
+        bottomTextView.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
+        bottomTextView1.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
+        setAlbum();
         mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
                 if (flag){
-                    mediaPlayer.seekTo(seekbarPosition);
                     mediaPlayer.pause();
+                    mediaPlayer.seekTo(seekbarPosition);
                     playBtn.setImageResource(R.drawable.playbutton);
                     playBtn1.setImageResource(R.drawable.play30dp);
                 }
@@ -322,9 +396,12 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     public void SendData(ArrayList<File> files, int position, boolean flag, frag1.RecyclerViewAdapter recycler) {
         SongList = files;
         recyclerViewAdapter=recycler;
+//        Log.d("mtagh",SongList.toString());
         SharedPreferences sharedPreferences = getSharedPreferences("demo",MODE_PRIVATE);
         songPosition =sharedPreferences.getInt("songPosition",0);
+        Log.d("mtagh",songPosition+"");
         seekbarPosition=sharedPreferences.getInt("seekbarPosition",0);
+        Log.d("mtagh",seekbarPosition+"");
         if (flag){
             songPosition = position;
             StartTheSong(songPosition,false);
@@ -351,7 +428,8 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
             bottomImageView.setImageBitmap(bitmap); //associated cover art in bitmap
             musicIcon.setImageBitmap(bitmap);
-
+            Drawable dr = new BitmapDrawable(bitmap);
+            cl.setBackground(dr);
         }else {
             bottomImageView.setImageResource(R.drawable._695055_headset_music_player_icon);
             musicIcon.setImageResource(R.drawable._695055_headset_music_player_icon);

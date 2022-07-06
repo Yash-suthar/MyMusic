@@ -79,7 +79,6 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     MediaMetadataRetriever retriever ;
     frag1.RecyclerViewAdapter recyclerViewAdapter;
     BlurView blurView;
-    Set<String> songList;
 
     @Override
     protected void onPause() {
@@ -123,13 +122,12 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         previousBtn=findViewById(R.id.PreviousBtn);
         lv = findViewById(R.id.linearLayout1);
         View bottomsheet = findViewById(R.id.behavior);
-
         behavior = BottomSheetBehavior.from(bottomsheet);
-
         seekBar = findViewById(R.id.seekBar);
         behavior.setPeekHeight(160);
 
 //        behavior.setHideable(true);
+
         viewPager = findViewById(R.id.viewPager);
         pAdapter= new pageAdapter(getSupportFragmentManager(),tabLayout.getTabCount());
         viewPager.setAdapter(pAdapter);
@@ -146,11 +144,15 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             @Override
             public void onClick(View view) {
 //                try {
-//                    TcpConnectionManager tc = new TcpConnectionManager(InetAddress.getByName("192.168.64.227"));
+//                    TcpConnectionManager tc = new TcpConnectionManager(InetAddress.getByName("192.168.64.227"),SongList.get(4));
+//
 //                } catch (UnknownHostException e) {
 //                    e.printStackTrace();
 //                }
+
                 TcpConnectionManager tc = new TcpConnectionManager();
+                tc.context = getApplicationContext();
+
             }
         });
         loopList.setOnClickListener(new View.OnClickListener() {

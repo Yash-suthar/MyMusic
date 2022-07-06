@@ -30,17 +30,21 @@ import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.airbnb.lottie.LottieAnimationView;
 import com.karumi.dexter.Dexter;
+import com.karumi.dexter.MultiplePermissionsReport;
 import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionDeniedResponse;
 import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
+import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 import com.karumi.dexter.listener.single.PermissionListener;
 
 import org.w3c.dom.Text;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -51,11 +55,11 @@ import java.util.ArrayList;
 public class frag1 extends Fragment {
     String[] items;
     public static ArrayList<File> Song_Files;
-    RecyclerView listView;
     //    public static int changerowindex = MainActivity.songPosition;
 //    public static int position;
     private RecyclerViewAdapter recyclerViewAdapter;
     SendDataInterface sendDataInterface;
+    LottieAnimationView animationView;
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
@@ -102,72 +106,50 @@ public class frag1 extends Fragment {
         View view = inflater.inflate(R.layout.fragment_frag1, container, false);
         RecyclerView listView = view.findViewById(R.id.SongListView);
         TextView SongNotFound = view.findViewById(R.id.SongNotFound);
+        animationView = view.findViewById(R.id.lottieAnimationView);
         listView.setHasFixedSize(true);
         listView.setLayoutManager(new LinearLayoutManager(this.getContext()));
         // Inflate the layout for this fragment
 
-        Dexter.withContext(getContext()).withPermission(Manifest.permission.READ_EXTERNAL_STORAGE).withListener(new PermissionListener() {
-            @Override
-            public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
-                listView.setAdapter(recyclerViewAdapter);
-                Asynctask at = new Asynctask();
-                at.dothis(listView,SongNotFound);
-                at.execute();
-//                ArrayAdapter<String> Adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1,items);
-//                custome_Adapter customeAdapter = new custome_Adapter();
-//                listView.setAdapter(customeAdapter);
-//                listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//                    @Override
-//                    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-//                        position = i;
-//                        Toast.makeText(getContext(), "position clicked", Toast.LENGTH_SHORT).show();
-//                        sendDataInterface.SendData(all_songs,i);
+//        Dexter.withContext(getContext()).withPermission(Manifest.permission.READ_EXTERNAL_STORAGE).withListener(new PermissionListener() {
+//            @Override
+//            public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
+//                Asynctask at = new Asynctask();
+//                at.dothis(listView,SongNotFound);
+//                at.execute();
+//            }
 //
-//                    }
-//                });
-            }
-
-            @Override
-            public void onPermissionDenied(PermissionDeniedResponse permissionDeniedResponse) {
-
-            }
-
-            @Override
-            public void onPermissionRationaleShouldBeShown(PermissionRequest permissionRequest, PermissionToken permissionToken) {
-                permissionToken.continuePermissionRequest();
-            }
-        }).check();
+//            @Override
+//            public void onPermissionDenied(PermissionDeniedResponse permissionDeniedResponse) {
+//
+//            }
+//
+//            @Override
+//            public void onPermissionRationaleShouldBeShown(PermissionRequest permissionRequest, PermissionToken permissionToken) {
+//                permissionToken.continuePermissionRequest();
+//            }
+//        }).check();
+        Dexter.withContext(getActivity())
+                .withPermissions(
+                        Manifest.permission.READ_EXTERNAL_STORAGE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ).withListener(new MultiplePermissionsListener() {
+                    @Override public void onPermissionsChecked(MultiplePermissionsReport report) {
+                        if (report.areAllPermissionsGranted()){
+                            Asynctask at = new Asynctask();
+                            at.dothis(listView,SongNotFound);
+                            at.execute();
+                        }
+                    }
+                    @Override public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
+                        token.continuePermissionRequest();
+                     }
+                }).onSameThread().check();
         return view;
     }
 
 
-    private void dothhis(RecyclerView listView, TextView songNotFound){
-        Thread thread = new Thread(){
-            @Override
-            public void run() {
-                ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
-                if (!all_songs.isEmpty()) {
-                    Song_Files = all_songs;
-                    sendDataInterface.SendData(all_songs, 0, false, recyclerViewAdapter);
-                    items = new String[all_songs.size()];
 
-                    for (int i = 0; i < all_songs.size(); i++) {
-                        items[i] = all_songs.get(i).getName().toString().replace(".mp3", "");
-//                    Log.d("stringtab", items[i]);
-                    }
-                    recyclerViewAdapter = new RecyclerViewAdapter(getContext(), Song_Files);
-                    listView.setAdapter(recyclerViewAdapter);
-
-
-                }else{
-                    listView.setVisibility(GONE);
-                    songNotFound.setVisibility(View.VISIBLE);
-                }
-            }
-        };
-        thread.start();
-
-    }
 
     public class Asynctask extends AsyncTask<Void, Void, Void>  {
         RecyclerView listview;
@@ -176,6 +158,12 @@ public class frag1 extends Fragment {
             this.listview =listview;
             this.textView = textView;
         }
+
+        @Override
+        protected void onPreExecute() {
+            animationView.setVisibility(View.VISIBLE);
+        }
+
         @Override
         protected Void doInBackground(Void... voids) {
             ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
@@ -197,6 +185,7 @@ public class frag1 extends Fragment {
         protected void onPostExecute(Void unused) {
             if (!Song_Files.isEmpty()){
                 sendDataInterface.SendData(Song_Files, 0, false, recyclerViewAdapter);
+                animationView.setVisibility(GONE);
                 recyclerViewAdapter = new RecyclerViewAdapter(getContext(), Song_Files);
                 listview.setAdapter(recyclerViewAdapter);
             } else{
@@ -249,7 +238,7 @@ public class frag1 extends Fragment {
 
 
     public class RecyclerViewAdapter extends RecyclerView.Adapter {
-        int row_index = MainActivity.songPosition;
+//        int row_index = MainActivity.songPosition;
         public Context context;
         public ArrayList<File> songList;
 

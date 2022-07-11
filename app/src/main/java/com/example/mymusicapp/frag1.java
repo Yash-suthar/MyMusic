@@ -132,7 +132,8 @@ public class frag1 extends Fragment {
         Dexter.withContext(getActivity())
                 .withPermissions(
                         Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        Manifest.permission.ACCESS_FINE_LOCATION
                 ).withListener(new MultiplePermissionsListener() {
                     @Override public void onPermissionsChecked(MultiplePermissionsReport report) {
                         if (report.areAllPermissionsGranted()){
@@ -183,9 +184,9 @@ public class frag1 extends Fragment {
 
         @Override
         protected void onPostExecute(Void unused) {
+            animationView.setVisibility(GONE);
             if (!Song_Files.isEmpty()){
                 sendDataInterface.SendData(Song_Files, 0, false, recyclerViewAdapter);
-                animationView.setVisibility(GONE);
                 recyclerViewAdapter = new RecyclerViewAdapter(getContext(), Song_Files);
                 listview.setAdapter(recyclerViewAdapter);
             } else{
@@ -283,8 +284,10 @@ public class frag1 extends Fragment {
             @Override
             public void onClick(View view) {
 //            row_index = this.getPosition();
-                sendDataInterface.SendData(songList, this.getPosition(), true, recyclerViewAdapter);
-                notifyDataSetChanged();
+                if (this.getPosition()!=MainActivity.songPosition) {
+                    sendDataInterface.SendData(songList, this.getPosition(), true, recyclerViewAdapter);
+                    notifyDataSetChanged();
+                }
             }
         }
     }

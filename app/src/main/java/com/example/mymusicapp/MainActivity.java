@@ -109,7 +109,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     private BottomSheetBehavior behavior;
     private LinearLayout lv;
     private ImageView nextBtn1, playBtn1, previousBtn, nextBtn, playBtn, bottomImageView, musicIcon, loopList, sync, menu_bar;
-    private int play_pause_flag = 0, loop_flag = 0, sync_flag = 0, port = 8000;
+    private int play_pause_flag = 0, loop_flag = 0, sync_flag = 0, port1 = 8000,port2 =8100,port3=8200,port4=8300;
     private ConstraintLayout cl1, cl2, cl;
     static MediaPlayer mediaPlayer;
     public static int songPosition, seekbarPosition;
@@ -507,15 +507,26 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 //            Log.d("server", groupOwnerAddress.getHostAddress());
             if (wifiP2pInfo.groupFormed && wifiP2pInfo.isGroupOwner) {
                 sendMode = true;
-                HostSocket hostSocket = new HostSocket();
-                hostSocket.execute();
+                Host1 host1 = new Host1();
+                host1.execute();
+                Host2 host2 = new Host2();
+                host2.execute();
+                Host3 host3 = new Host3();
+                host3.execute();
+                Host4 host4 = new Host4();
+                host4.execute();
                 Toast.makeText(MainActivity.this, "you are host", Toast.LENGTH_SHORT).show();
             } else if (wifiP2pInfo.groupFormed) {
                 sendMode = false;
-                ClientSocket clientSocket = new ClientSocket();
-                clientSocket.execute(groupOwnerAddress);
-//                JSONClientSocket jsonClientSocket = new JSONClientSocket();
-//                jsonClientSocket.execute(groupOwnerAddress);
+                Client1 clientSocket1 = new Client1();
+                clientSocket1.execute(groupOwnerAddress);
+                Client2 clientSocket2 = new Client2();
+                clientSocket2.execute(groupOwnerAddress);
+                Client3 clientSocket3 = new Client3();
+                clientSocket3.execute(groupOwnerAddress);
+                Client4 clientSocket4 = new Client4();
+                clientSocket4.execute(groupOwnerAddress);
+
                 Toast.makeText(MainActivity.this, "you are client", Toast.LENGTH_SHORT).show();
             }
         }
@@ -899,27 +910,39 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         }
     }
 
-    public class ClientSocket extends AsyncTask<InetAddress, Void, Void> {
-        @Override
-        protected void onPreExecute() {
-//            Log.d("server", "strting to connect");
-        }
+
+
+
+
+    public class Client1 extends AsyncTask<InetAddress, Void, Void> {
 
         @Override
         protected Void doInBackground(InetAddress... inetAddresses) {
 
             try {
                 hostSong = new Socket();
-                hostSong.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
-                Log.d("server", "hostSong socket Connected!");
+                hostSong.connect(new InetSocketAddress(inetAddresses[0], port1), 20000);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+
+        }
+
+        @Override
+        protected void onPostExecute(Void unused) {
+            ReceiveSong receiveSong = new ReceiveSong();
+            receiveSong.e
+        }
+    }
+    public class Client2 extends AsyncTask<InetAddress, Void, Void> {
+
+        @Override
+        protected Void doInBackground(InetAddress... inetAddresses) {
+
+            try {
                 clientSong = new Socket();
-                clientSong.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
-                Log.d("server", "clientSong socket Connected!");
-                hostObject = new Socket();
-                hostObject.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
-                Log.d("server", "hostObject socket Connected!");
-                clientObject = new Socket();
-                clientObject.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
+                clientSong.connect(new InetSocketAddress(inetAddresses[0], port2), 20000);
                 Log.d("server", "clientSong socket Connected!");
 
             } catch (IOException e) {
@@ -929,38 +952,99 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 
         }
 
-        @Override
-        protected void onPostExecute(Void voids) {
+    }
+    public class Client3 extends AsyncTask<InetAddress, Void, Void> {
 
-//                Log.d("server", "socket connected with " + socket.getInetAddress())
-                device_connected_flag = true;
-                ReceiveSong receiveSong = new ReceiveSong();
-                receiveSong.execute(hostSong);
-//                receive_status receiveStatus = new receive_status();
-//                receiveStatus.execute(hostObject);
+        @Override
+        protected Void doInBackground(InetAddress... inetAddresses) {
+
+            try {
+                hostObject = new Socket();
+                hostObject.connect(new InetSocketAddress(inetAddresses[0], port3), 20000);
+                Log.d("server", "hostObject socket Connected!");
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
 
         }
+
+    }
+    public class Client4 extends AsyncTask<InetAddress, Void, Void> {
+
+        @Override
+        protected Void doInBackground(InetAddress... inetAddresses) {
+
+            try {
+                clientObject = new Socket();
+                clientObject.connect(new InetSocketAddress(inetAddresses[0], port4), 20000);
+                Log.d("server", "clientSong socket Connected!");
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+
+        }
+
     }
 
-    public class HostSocket extends AsyncTask<Void, Void, Void> {
 
 
-        @Override
-        protected void onPreExecute() {
-//            Log.d("server", "starting to connect");
-        }
+
+    public class Host1 extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected Void doInBackground(Void... voids) {
             try {
-                ServerSocket serverSocket = new ServerSocket(port);
+                ServerSocket serverSocket = new ServerSocket(port1);
                 Log.d("server", "server lestening");
                 hostSong = serverSocket.accept();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }
+    public class Host2 extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                ServerSocket serverSocket = new ServerSocket(port2);
+
                 Log.d("server", "hostSong socket connected!");
                 clientSong = serverSocket.accept();
-                Log.d("server", "clientSong socket connected!");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }
+    public class Host3 extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                ServerSocket serverSocket = new ServerSocket(port3);
+                Log.d("server", "server lestening");
                 hostObject = serverSocket.accept();
                 Log.d("server", "hostObject socket connected!");
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }
+    public class Host4 extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                ServerSocket serverSocket = new ServerSocket(port4);
+                Log.d("server", "server lestening");
                 clientObject = serverSocket.accept();
                 Log.d("server","clientObject socket connected!");
             } catch (IOException e) {
@@ -968,23 +1052,28 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             }
             return null;
         }
-
-        @Override
-        protected void onPostExecute(Void socket) {
-            device_connected_flag = true;
-//            JSONsender(hostObject);
-            SendSong sendSong = new SendSong(hostSong);
-            sendSong.execute(songPosition);
-//            ReceiveSong receiveSong = new ReceiveSong();
-//            receiveSong.execute(clientSong);
-            receive_status receiveStatus = new receive_status();
-            receiveStatus.execute(clientObject);
-
-
-
-//                Log.d("server", "connection complete");
-        }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //    public class JSONClientSocket extends AsyncTask<InetAddress,Void,Socket> {
 //

@@ -109,7 +109,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     private BottomSheetBehavior behavior;
     private LinearLayout lv;
     private ImageView nextBtn1, playBtn1, previousBtn, nextBtn, playBtn, bottomImageView, musicIcon, loopList, sync, menu_bar;
-    private int play_pause_flag = 0, loop_flag = 0, sync_flag = 0, port1 = 8000,port2 =8100,port3=8200,port4=8300;
+    private int play_pause_flag = 0, loop_flag = 0, sync_flag = 0, port = 8000, bufferSize = 85000;
     private ConstraintLayout cl1, cl2, cl;
     static MediaPlayer mediaPlayer;
     public static int songPosition, seekbarPosition;
@@ -132,11 +132,16 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     WifiP2pDevice[] deviceArray;
     private AutoCompleteTextView autoCompleteTextView;
     private CoordinatorLayout devicesListLayout;
-    Socket hostSong,clientSong,hostObject,clientObject;
-    boolean device_connected_flag, sendMode;
+    //    Socket hostSong,clientSong,hostObject,clientObject;
+    Socket SongSocket, JSONSocket;
+    InputStream songInputStream, JSONInputStream;
+    OutputStream songOutputStream, JSONOutputStream;
+    boolean device_connected_flag=false, sendMode;
+    String currentSongName;
+    FileOutputStream fis;
     ArrayList<File> tempSong = new ArrayList<File>();
 
-//    InputStream JSONinput_stream;
+    //    InputStream JSONinput_stream;
 //    OutputStream JSONoutput_stream;
 //    ObjectInputStream JSON_Object_input_stream;
 //    ObjectOutputStream JSON_Object_output_stream;
@@ -349,17 +354,17 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         playBtn1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (device_connected_flag ){
-                          Log.d("server","non sender button clicked");
-                          if (sendMode){
-                              JSONsender(hostObject);
-                          }else{
-                              JSONsender(clientObject);
-                          }
+
+                play_button_change();
+
+                if (device_connected_flag) {
+                    try {
+                        JSONsender(2);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
-                else{
-                    play_button_change();
-                }
+//                }
 
 
             }
@@ -367,37 +372,55 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         playBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (device_connected_flag ){
-                    if (sendMode){
-                        JSONsender(hostObject);
-                    }else{
-                        JSONsender(clientObject);
+
+
+                play_button_change();
+
+                if (device_connected_flag) {
+                    try {
+                        JSONsender(2);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
                     }
                 }
-                else{
-                    play_button_change();
-                }
+
             }
         });
         nextBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (songPosition == SongList.size() - 1) {
-                    songPosition = 0;
-                    StartTheSong(SongList.get(songPosition), false);
-                } else {
-                    StartTheSong(SongList.get(++songPosition), false);
+                if (!sendMode && device_connected_flag) {
+                    try {
+                        JSONsender(4);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }else {
+                    if (songPosition == SongList.size() - 1) {
+                        songPosition = 0;
+                        StartTheSong(SongList.get(songPosition), false);
+                    } else {
+                        StartTheSong(SongList.get(++songPosition), false);
+                    }
                 }
             }
         });
         nextBtn1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (songPosition == SongList.size() - 1) {
-                    songPosition = 0;
-                    StartTheSong(SongList.get(songPosition), false);
-                } else {
-                    StartTheSong(SongList.get(++songPosition), false);
+                if (!sendMode && device_connected_flag) {
+                    try {
+                        JSONsender(4);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }else {
+                    if (songPosition == SongList.size() - 1) {
+                        songPosition = 0;
+                        StartTheSong(SongList.get(songPosition), false);
+                    } else {
+                        StartTheSong(SongList.get(++songPosition), false);
+                    }
                 }
 
             }
@@ -405,11 +428,19 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         previousBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (songPosition == 0) {
-                    songPosition = SongList.size() - 1;
-                    StartTheSong(SongList.get(songPosition), false);
-                } else {
-                    StartTheSong(SongList.get(--songPosition), false);
+                if (!sendMode && device_connected_flag) {
+                    try {
+                        JSONsender(5);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }else {
+                    if (songPosition == 0) {
+                        songPosition = SongList.size() - 1;
+                        StartTheSong(SongList.get(songPosition), false);
+                    } else {
+                        StartTheSong(SongList.get(--songPosition), false);
+                    }
                 }
 
             }
@@ -420,6 +451,14 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 if (b) {
                     mediaPlayer.seekTo(i);
                     seekBar.setProgress(i);
+                    if (device_connected_flag){
+                        try {
+                            JSONsender(3);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
                 }
             }
 
@@ -504,29 +543,13 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             devicesListLayout.setVisibility(GONE);
             sync.setVisibility(View.VISIBLE);
             final InetAddress groupOwnerAddress = wifiP2pInfo.groupOwnerAddress;
-//            Log.d("server", groupOwnerAddress.getHostAddress());
             if (wifiP2pInfo.groupFormed && wifiP2pInfo.isGroupOwner) {
-                sendMode = true;
-                Host1 host1 = new Host1();
-                host1.execute();
-                Host2 host2 = new Host2();
-                host2.execute();
-                Host3 host3 = new Host3();
-                host3.execute();
-                Host4 host4 = new Host4();
-                host4.execute();
+                HostSocket hostSocket = new HostSocket();
+                hostSocket.execute();
                 Toast.makeText(MainActivity.this, "you are host", Toast.LENGTH_SHORT).show();
             } else if (wifiP2pInfo.groupFormed) {
-                sendMode = false;
-                Client1 clientSocket1 = new Client1();
-                clientSocket1.execute(groupOwnerAddress);
-                Client2 clientSocket2 = new Client2();
-                clientSocket2.execute(groupOwnerAddress);
-                Client3 clientSocket3 = new Client3();
-                clientSocket3.execute(groupOwnerAddress);
-                Client4 clientSocket4 = new Client4();
-                clientSocket4.execute(groupOwnerAddress);
-
+                ClientSocket clientSocket = new ClientSocket();
+                clientSocket.execute(groupOwnerAddress);
                 Toast.makeText(MainActivity.this, "you are client", Toast.LENGTH_SHORT).show();
             }
         }
@@ -567,88 +590,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         }
     }
 
-//    public void StartTheSong(int position, boolean flag) {
-//        if (mediaPlayer != null) {
-//            mediaPlayer.start();
-//            mediaPlayer.release();
-//        }
-//        if (recyclerViewAdapter != null) {
-//            recyclerViewAdapter.notifyDataSetChanged();
-//        }
-////        if (sendMode){
-////            SendSong sendSong = new SendSong();
-////            sendSong.execute(position);
-////        }
-//        Uri uri;
-////        recyclerViewAdapter.notifyItemChanged(songPosition);
-//        if (device_connected_flag && !sendMode) {
-//            uri = Uri.parse(tempSong.get(position).toString());
-//            Log.d("server", "" + uri);
-//        } else {
-//
-//            uri = Uri.parse(SongList.get(position).toString());
-//            Log.d("server", "" + uri);
-//        }
-//        Log.d("mtagh", uri.toString());
-//        mediaPlayer = MediaPlayer.create(getApplicationContext(), uri);
-//        mediaPlayer.start();
-//        playBtn1.setImageResource(R.drawable.pause30dp);
-//        playBtn.setImageResource(R.drawable.pausebutton);
-//        play_pause_flag = 1;
-//        if (device_connected_flag && !sendMode) {
-//            bottomTextView.setText(tempSong.get(position).getName().toString().replace(".mp3", ""));
-//            bottomTextView1.setText(tempSong.get(position).getName().toString().replace(".mp3", ""));
-//        } else {
-//            bottomTextView.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
-//            bottomTextView1.setText(SongList.get(position).getName().toString().replace(".mp3", ""));
-//        }
-//        setAlbum();
-//        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-//            @Override
-//            public void onPrepared(MediaPlayer mediaPlayer) {
-//                if (flag || device_connected_flag) {
-//                    mediaPlayer.pause();
-//                    if (flag) {
-//                        mediaPlayer.seekTo(seekbarPosition);
-//                    }
-//                    playBtn.setImageResource(R.drawable.playbutton);
-//                    playBtn1.setImageResource(R.drawable.play30dp);
-//                    play_pause_flag=0;
-//                    if (!sendMode && device_connected_flag) {
-//
-//                            JSONsender(clientObject);
-//
-//                    }
-//                }
-//
-//                updateSeekBar();
-//                seekBar.setMax(mediaPlayer.getDuration());
-//                EndTime.setText("" + TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getDuration()) + ":" + TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getDuration()) % 60);
-//            }
-//
-//
-//        });
-//        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-//            @Override
-//            public void onCompletion(MediaPlayer mediaPlayer) {
-//                if (loop_flag == 0) {
-//                    if (songPosition == SongList.size() - 1) {
-//                        songPosition = 0;
-//                        StartTheSong(songPosition, false);
-//                    } else {
-//                        StartTheSong(++songPosition, false);
-//                    }
-//
-//                } else if (loop_flag == 1) {
-//                    StartTheSong(songPosition, false);
-//                } else {
-//                    Random random = new Random();
-//                    songPosition = random.nextInt(SongList.size());
-//                    StartTheSong(songPosition, false);
-//                }
-//            }
-//        });
-//    }
+
     public void StartTheSong(File file, boolean flag) {
         if (mediaPlayer != null) {
             mediaPlayer.start();
@@ -657,40 +599,50 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         if (recyclerViewAdapter != null) {
             recyclerViewAdapter.notifyDataSetChanged();
         }
-//        if (sendMode){
-//            SendSong sendSong = new SendSong();
-//            sendSong.execute(position);
-//        }
+        if (sendMode && device_connected_flag){
+            SendSong sendSong = new SendSong(songPosition);
+            sendSong.start();
+        }
 
-//        recyclerViewAdapter.notifyItemChanged(songPosition);
+
+        currentSongName = file.getName().toString().replace(".mp3", "");
         Uri uri = Uri.parse(file.toString());
         Log.d("server", "" + uri);
         mediaPlayer = MediaPlayer.create(getApplicationContext(), uri);
-        mediaPlayer.start();
-        playBtn1.setImageResource(R.drawable.pause30dp);
-        playBtn.setImageResource(R.drawable.pausebutton);
-        play_pause_flag = 1;
-        bottomTextView.setText(file.getName().toString().replace(".mp3", ""));
-        bottomTextView1.setText(file.getName().toString().replace(".mp3", ""));
+//        mediaPlayer.start();
+//        playBtn1.setImageResource(R.drawable.pause30dp);
+//        playBtn.setImageResource(R.drawable.pausebutton);
+//        play_pause_flag = 1;
+        bottomTextView.setText(currentSongName);
+        bottomTextView1.setText(currentSongName);
         setAlbum(file);
         mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
                 if (flag || device_connected_flag) {
-                    mediaPlayer.pause();
+//                    mediaPlayer.pause();
                     if (flag) {
                         mediaPlayer.seekTo(seekbarPosition);
                     }
                     playBtn.setImageResource(R.drawable.playbutton);
                     playBtn1.setImageResource(R.drawable.play30dp);
-                    play_pause_flag=0;
+                    play_pause_flag = 0;
                     if (!sendMode && device_connected_flag) {
 
-                        JSONsender(clientObject);
+                        try {
+                            JSONsender(8);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
 
                     }
                 }
-
+                if (!device_connected_flag && !flag){
+                    mediaPlayer.start();
+                    playBtn1.setImageResource(R.drawable.pause30dp);
+                    playBtn.setImageResource(R.drawable.pausebutton);
+                    play_pause_flag = 1;
+                }
                 updateSeekBar();
                 seekBar.setMax(mediaPlayer.getDuration());
                 EndTime.setText("" + TimeUnit.MILLISECONDS.toMinutes(mediaPlayer.getDuration()) + ":" + TimeUnit.MILLISECONDS.toSeconds(mediaPlayer.getDuration()) % 60);
@@ -720,27 +672,6 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         });
     }
 
-    private void JSONsender(Socket socket){
-        SerializableObject ob = new SerializableObject();
-        ob.songName="hello this is my mp3";
-        ob.SeekbarPosition = mediaPlayer.getCurrentPosition();
-        Log.d("server",mediaPlayer.getCurrentPosition()+"");
-        ob.play_pause_flag = play_pause_flag;
-        send_status sendStatus = new send_status(socket);
-        sendStatus.execute(ob);
-        Log.d("server","object sending");
-    }
-
-    private void JSONreceiver(SerializableObject ob){
-
-        mediaPlayer.seekTo(ob.SeekbarPosition);
-        if (ob.play_pause_flag==play_pause_flag){
-            play_button_change();
-        }
-        bottomTextView.setText(ob.songName);
-        bottomTextView1.setText(ob.songName);
-    }
-
 
     @Override
     public void SendData(ArrayList<File> files, int position, boolean flag, frag1.RecyclerViewAdapter recycler) {
@@ -752,14 +683,21 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         Log.d("mtagh", songPosition + "");
         seekbarPosition = sharedPreferences.getInt("seekbarPosition", 0);
         Log.d("mtagh", seekbarPosition + "");
-        if (sendMode || !device_connected_flag) {
-            if (flag) {
-                songPosition = position;
-                StartTheSong(SongList.get(songPosition), false);
-            } else {
-                StartTheSong(SongList.get(songPosition), true);
+        if (device_connected_flag) {
+            sendMode = true;
+            try {
+                JSONsender(6);
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
         }
+        if (flag) {
+            songPosition = position;
+            StartTheSong(SongList.get(songPosition), false);
+        } else {
+            StartTheSong(SongList.get(songPosition), true);
+        }
+
 
 
     }
@@ -815,113 +753,251 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    public class SendSong extends AsyncTask<Integer, Void, Void> {
-        Socket socket;
-       public SendSong(Socket socket){
-            this.socket =socket;
-        }
-
-        @Override
-        protected Void doInBackground(Integer... ints) {
-            try {
-                OutputStream outputStream =  socket.getOutputStream();
-//                Log.d("server", "socket stream output");
-                FileInputStream fi = new FileInputStream(SongList.get(ints[0]));
-                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
-//                Log.d("server", "file stream created");
-                byte[] buf = new byte[(int) SongList.get(ints[0]).length()];
-                while (fi.read(buf) > 0) {
-
-//                    Log.d("server", "file sending");
-//                    outputStream.write(buf, 0, buf.length);
-                    bufferedOutputStream.write(buf,0, buf.length);
-
-                }
-                Log.d("server", "" + SongList.get(ints[0]).length());
-                bufferedOutputStream.close();
-                outputStream.flush();
-//                outputStream.close();
-                fi.close();
-                Log.d("server", "song sended");
-            } catch (IOException e) {
-                e.printStackTrace();
+    private void JSONsender(int whatChanged) throws JSONException {
+        JSONObject ob = new JSONObject();
+        switch (whatChanged) {
+            //songNaame changed
+            case 1: {
+                ob.put("whatChanged", 1);
+                ob.put("SongName", currentSongName);
+                break;
             }
-            return null;
+            //playbutton changed
+            case 2: {
+                ob.put("whatChanged", 2);
+                break;
+            }
+            //seekbar position changed
+            case 3: {
+                ob.put("whatChanged", 3);
+                ob.put("SeekbarPosition", mediaPlayer.getCurrentPosition());
+                break;
+            }
+            //nextbutton changed
+            case 4: {
+                ob.put("whatChanged", 4);
+                break;
+            }
+            //previousbutton changed
+            case 5: {
+                ob.put("whatChanged", 5);
+                break;
+            }
+            //sendmode changed
+            case 6: {
+                ob.put("whatChanged", 6);
+                ob.put("SongMode",false);
+                break;
+            }
+            //songSize
+            case 7: {
+                ob.put("whatChanged", 7);
+                ob.put("bufferSize", bufferSize);
+                break;
+            }
+            //prepared mediaplayer
+            case 8:{
+                ob.put("whatChanged",8);
+                break;
+            }
+
         }
+//        ob.put("songName",currentSongName);
+//        ob.put("SeekbarPosition",mediaPlayer.getCurrentPosition());
+//        ob.put("play_pause_flag",play_pause_flag);
+//        Log.d("server", mediaPlayer.getCurrentPosition() + "");
+        SendJSON sendJSON = new SendJSON(ob);
+        sendJSON.start();
+        Log.d("server", "object sending");
     }
 
-    public class ReceiveSong extends AsyncTask<Socket, Void, File> {
+    private void JSONreceiver(JSONObject ob) throws JSONException {
+        switch (ob.getInt("whatChanged")) {
+            //songNaame changed
+            case 1: {
+                bottomTextView.setText(ob.getString("songName"));
+                bottomTextView1.setText(ob.getString("songName"));
+                break;
+            }
+            //playbutton changed
+            case 2: {
+                play_button_change();
+                break;
+            }
+            //seekbar position changed
+            case 3: {
+                mediaPlayer.seekTo(ob.getInt("SeekbarPosition"));
+                break;
+            }
+            //nextbutton changed
+            case 4: {
+//                ob.put("whatChanged", 4);
+                nextBtn1.performClick();
+                break;
+            }
+            //previousbutton changed
+            case 5: {
 
-        @Override
-        protected File doInBackground(Socket... sockets) {
+                previousBtn.performClick();
+                break;
+            }
+            //sendmode changed
+            case 6: {
+//                ob.put("whatChanged", 6);
+              sendMode = ob.getBoolean("SongMode");
+                break;
+            }
+            //songSize
+            case 7: {
+                bufferSize = ob.getInt("bufferSize");
+//                ob.put("whatChanged",7);
+//                ob.put("bufferSize",SongList.get(songPosition).length());
+                break;
+            }
+            //prepared mediaplayer
+            case 8:{
+                JSONsender(1);
+                JSONsender(3);
+                playBtn.performClick();
+            }
 
-//                    outputStream = client_socket.getOutputStream();
-            File file = null;
-            try {
+        }
+//        mediaPlayer.seekTo(ob.getInt("SeekbarPosition"));
+//        if (ob.getInt("play_pause_flag")==play_pause_flag){
+//        play_button_change();
+//        }else{
+//            playBtn1.setImageResource(R.drawable.play30dp);
+//            playBtn.setImageResource(R.drawable.playbutton);
+//            play_pause_flag = 0;
+//            mediaPlayer.pause();
+//        }
+//        bottomTextView.setText(ob.getString("songName"));
+//        bottomTextView1.setText(ob.getString("songName"));
+    }
 
-                    InputStream inputStream = sockets[0].getInputStream();
-                    BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
-                    file = File.createTempFile("playnow", ".mp3", getApplicationContext().getCacheDir());
-                    Log.d("server", "file created");
-                    FileOutputStream fis = new FileOutputStream(file);
-//                Log.d("server","stream writed");
-                    byte[] buf = new byte[1024];
-                    int offset;
-                    while ((offset = bufferedInputStream.read(buf)) != -1) {
+//    public class SendSong extends AsyncTask<Integer, Void, Void> {
+//
+//        @Override
+//        protected Void doInBackground(Integer... ints) {
+//            try {
+//                bufferSize = (int) SongList.get(ints[0]).length();
+//                JSONsender(7);
+//                byte[] buf = new byte[bufferSize];
+//
+////                OutputStream outputStream =  socket.getOutputStream();
+////                Log.d("server", "socket stream output");
+//                FileInputStream fi = new FileInputStream(SongList.get(ints[0]));
+//                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(songOutputStream);
+////                Log.d("server", "file stream created");
+//
+//                while (fi.read(buf) > 0) {
+//
+////                    Log.d("server", "file sending");
+////                    outputStream.write(buf, 0, buf.length);
+//                    bufferedOutputStream.write(buf,0, buf.length);
+//
+//                }
+//                Log.d("server", "" + bufferSize);
+////                bufferedOutputStream.close();
+////                outputStream.flush();
+////                outputStream.close();
+//                fi.close();
+//                Log.d("server", "song sended");
+//            } catch (IOException | JSONException e) {
+//                e.printStackTrace();
+//            }
+//            return null;
+//        }
+//    }
+//
+//    public class ReceiveSong extends AsyncTask<Socket, Void, File> {
+//
+//        @Override
+//        protected File doInBackground(Socket... sockets) {
+////            BufferedInputStream Objectstream = new BufferedInputStream(JSONInputStream);
+////            int read;
+////            byte[] buffer = new byte[2048];
+////            while(true){
+////                try {
+////                    if (!((read = Objectstream.read(buffer)) != -1)) break;
+////                    String jsonString = new String(buffer,0,read);
+////                    Log.d("server",jsonString);
+////                    JSONObject jsonObject = new JSONObject(jsonString);
+////                    runOnUiThread(new Runnable() {
+////                        @Override
+////                        public void run() {
+////                            try {
+////                                JSONreceiver(jsonObject);
+////                            } catch (JSONException e) {
+////                                e.printStackTrace();
+////                            }
+////                        }
+////                    });
+////
+////                    Log.d("server",jsonObject.toString());
+////                } catch (IOException | JSONException e) {
+////                    e.printStackTrace();
+////                }
+////
+////            }
+////                    outputStream = client_socket.getOutputStream();
+//            File file = null;
+//            try {
+//
+//                BufferedInputStream bufferedInputStream = new BufferedInputStream(songInputStream);
+//                file = File.createTempFile("playnow", ".mp3", getApplicationContext().getCacheDir());
+//                Log.d("server", "file created");
+//                FileOutputStream fis = new FileOutputStream(file);
+////                Log.d("server","stream writed");
+//                byte[] buf = new byte[bufferSize];
+//                int offset;
+//                while ((offset = bufferedInputStream.read(buf)) != -1) {
 //                    Log.d("server", "" + offset);
 //                    Log.d("server", "writing file");
-                        fis.write(buf, 0, offset);
-                    }
-                    fis.flush();
-                    Log.d("server", "" + file.length());
-                    Log.d("server", "songreceived");
-//                    StartTheSong(file, true);
+//                    fis.write(buf, 0, offset);
+//                    Log.d("server", "" + file.length());
+//                    Log.d("server", "songreceived");
+//                }
+//                fis.flush();
+//                Log.d("server","while loop braked");
+////                    StartTheSong(file, true);
+//
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//            return file;
+//        }
+//
+//
+//        @Override
+//        protected void onPostExecute(File file) {
+////            StartTheSong(file, true);
+//        }
+//    }
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            return file;
-        }
-
-
+    public class ClientSocket extends AsyncTask<InetAddress, Void, Void> {
         @Override
-        protected void onPostExecute(File file) {
-            StartTheSong(file, true);
+        protected void onPreExecute() {
+//            Log.d("server", "strting to connect");
         }
-    }
-
-
-
-
-
-    public class Client1 extends AsyncTask<InetAddress, Void, Void> {
 
         @Override
         protected Void doInBackground(InetAddress... inetAddresses) {
 
             try {
-                hostSong = new Socket();
-                hostSong.connect(new InetSocketAddress(inetAddresses[0], port1), 20000);
+                SongSocket = new Socket();
+                SongSocket.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
+                Log.d("server", "hostSong socket Connected!");
+                songInputStream = SongSocket.getInputStream();
+                songOutputStream = SongSocket.getOutputStream();
+
+                JSONSocket = new Socket();
+                JSONSocket.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
+                JSONInputStream = JSONSocket.getInputStream();
+                JSONOutputStream = JSONSocket.getOutputStream();
+
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -931,151 +1007,65 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 
         @Override
         protected void onPostExecute(Void unused) {
-            ReceiveSong receiveSong = new ReceiveSong();
-            receiveSong.e
+            device_connected_flag = true;
+            sendMode = false;
+            if (mediaPlayer.isPlaying()){
+                play_button_change();
+            }
+            ReceiveJSON receiveJSON = new ReceiveJSON();
+            receiveJSON.start();
+            ReceiveSong rs = new ReceiveSong();
+            rs.start();
         }
     }
-    public class Client2 extends AsyncTask<InetAddress, Void, Void> {
+
+    public class HostSocket extends AsyncTask<Void, Void, Void> {
+
 
         @Override
-        protected Void doInBackground(InetAddress... inetAddresses) {
-
-            try {
-                clientSong = new Socket();
-                clientSong.connect(new InetSocketAddress(inetAddresses[0], port2), 20000);
-                Log.d("server", "clientSong socket Connected!");
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-
+        protected void onPreExecute() {
+//            Log.d("server", "starting to connect");
         }
-
-    }
-    public class Client3 extends AsyncTask<InetAddress, Void, Void> {
-
-        @Override
-        protected Void doInBackground(InetAddress... inetAddresses) {
-
-            try {
-                hostObject = new Socket();
-                hostObject.connect(new InetSocketAddress(inetAddresses[0], port3), 20000);
-                Log.d("server", "hostObject socket Connected!");
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-
-        }
-
-    }
-    public class Client4 extends AsyncTask<InetAddress, Void, Void> {
-
-        @Override
-        protected Void doInBackground(InetAddress... inetAddresses) {
-
-            try {
-                clientObject = new Socket();
-                clientObject.connect(new InetSocketAddress(inetAddresses[0], port4), 20000);
-                Log.d("server", "clientSong socket Connected!");
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-
-        }
-
-    }
-
-
-
-
-    public class Host1 extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected Void doInBackground(Void... voids) {
             try {
-                ServerSocket serverSocket = new ServerSocket(port1);
+                ServerSocket serverSocket = new ServerSocket(port);
                 Log.d("server", "server lestening");
-                hostSong = serverSocket.accept();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }
-    }
-    public class Host2 extends AsyncTask<Void, Void, Void> {
 
-        @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                ServerSocket serverSocket = new ServerSocket(port2);
-
+                SongSocket = serverSocket.accept();
                 Log.d("server", "hostSong socket connected!");
-                clientSong = serverSocket.accept();
+                songInputStream = SongSocket.getInputStream();
+                songOutputStream = SongSocket.getOutputStream();
+
+                JSONSocket = serverSocket.accept();
+                Log.d("server", "clientSong socket connected!");
+                JSONInputStream = JSONSocket.getInputStream();
+                JSONOutputStream = JSONSocket.getOutputStream();
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
             return null;
         }
-    }
-    public class Host3 extends AsyncTask<Void, Void, Void> {
 
         @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                ServerSocket serverSocket = new ServerSocket(port3);
-                Log.d("server", "server lestening");
-                hostObject = serverSocket.accept();
-                Log.d("server", "hostObject socket connected!");
-
-            } catch (IOException e) {
-                e.printStackTrace();
+        protected void onPostExecute(Void unused) {
+            sendMode = true;
+            device_connected_flag = true;
+            if (mediaPlayer.isPlaying()){
+                play_button_change();
             }
-            return null;
-        }
-    }
-    public class Host4 extends AsyncTask<Void, Void, Void> {
-
-        @Override
-        protected Void doInBackground(Void... voids) {
-            try {
-                ServerSocket serverSocket = new ServerSocket(port4);
-                Log.d("server", "server lestening");
-                clientObject = serverSocket.accept();
-                Log.d("server","clientObject socket connected!");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
+            ReceiveJSON receiveJSON = new ReceiveJSON();
+            receiveJSON.start();
+            ReceiveSong rs = new ReceiveSong();
+            rs.start();
+            SendSong sendSong = new SendSong(songPosition);
+            sendSong.start();
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//    public class JSONClientSocket extends AsyncTask<InetAddress,Void,Socket> {
+    //    public class JSONClientSocket extends AsyncTask<InetAddress,Void,Socket> {
 //
 //        @Override
 //        protected Socket doInBackground(InetAddress... inetAddresses) {
@@ -1103,74 +1093,198 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 //
 //        }
 //    }
-    public class send_status extends AsyncTask<SerializableObject,Void,Void>{
-        Socket socket;
-        public send_status(Socket socket){
-            this.socket = socket;
+//    public class send_status extends AsyncTask<SerializableObject,Void,Void>{
+//        Socket socket;
+//        public send_status(Socket socket){
+//            this.socket = socket;
+//        }
+//
+//        @Override
+//        protected Void doInBackground(SerializableObject... serializableObjects) {
+//
+//            try { Log.d("server","status sending");
+//
+//                ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+//
+//                Log.d("server",serializableObjects[0].SeekbarPosition+"this is seekbar position");
+//                outputStream.writeObject(serializableObjects[0]);
+//                Log.d("server","status sended");
+//                outputStream.flush();
+//
+//            } catch (IOException ioException) {
+//                ioException.printStackTrace();
+//            }
+////                JSON_Object_output_stream.flush();
+////                outputStream.close();
+//
+//
+//            return null;
+//        }
+//
+//        @Override
+//        protected void onPostExecute(Void unused) {
+//            play_button_change();
+//        }
+//    }
+//    public class receive_status extends AsyncTask <Socket,SerializableObject,SerializableObject>{
+//        @Override
+//        protected void onProgressUpdate(SerializableObject... values) {
+//            JSONreceiver(values[0]);
+//        }
+//
+//        @Override
+//        protected SerializableObject doInBackground(Socket... sockets) {
+//            SerializableObject ob = new SerializableObject();
+//            try {
+//
+//
+//                while (sockets[0]!=null) {
+//                    ObjectInputStream inputStream = new ObjectInputStream(new BufferedInputStream(sockets[0].getInputStream()));
+//                    Log.d("server", "starting to receiving");
+//                    ob = (SerializableObject) inputStream.readObject();
+//                    Log.d("server",""+ob.SeekbarPosition);
+//                    publishProgress(ob);
+////                        mediaPlayer.seekTo(ob.SeekbarPosition);
+////                        if (play_pause_flag == ob.play_pause_flag){
+////                            play_button_change();
+////                        }
+////                        bottomTextView.setText(ob.songName);
+////                        bottomTextView1.setText(ob.songName);
+////                        if(isCancelled())
+////                            break;
+//                    Log.d("server", ob.SeekbarPosition + "");
+//                }
+//            } catch (IOException | ClassNotFoundException ioException) {
+//                ioException.printStackTrace();
+//            }
+//
+//            return ob;
+//        }
+//
+//    }
+
+    class SendJSON extends Thread {
+        JSONObject jsonObject;
+
+        SendJSON(JSONObject jsonObject) {
+            this.jsonObject = jsonObject;
         }
 
         @Override
-        protected Void doInBackground(SerializableObject... serializableObjects) {
-
-            try { Log.d("server","status sending");
-
-                ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-
-                Log.d("server",serializableObjects[0].SeekbarPosition+"this is seekbar position");
-                outputStream.writeObject(serializableObjects[0]);
-                Log.d("server","status sended");
-                outputStream.flush();
-
-                } catch (IOException ioException) {
-                ioException.printStackTrace();
+        public void run() {
+            String jsonString = jsonObject.toString();
+            byte[] buffer = jsonString.getBytes();
+            try {
+                JSONOutputStream.write(buffer);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-//                JSON_Object_output_stream.flush();
-//                outputStream.close();
-
-
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void unused) {
-            play_button_change();
         }
     }
-    public class receive_status extends AsyncTask <Socket,SerializableObject,SerializableObject>{
-        @Override
-        protected void onProgressUpdate(SerializableObject... values) {
-            JSONreceiver(values[0]);
-        }
 
+    class ReceiveJSON extends Thread {
         @Override
-        protected SerializableObject doInBackground(Socket... sockets) {
-                SerializableObject ob = new SerializableObject();
+        public void run() {
+            BufferedInputStream Objectstream = new BufferedInputStream(JSONInputStream);
+            int read;
+            byte[] buffer = new byte[2048];
+            while (true) {
                 try {
+                    if (!((read = Objectstream.read(buffer)) != -1)) break;
+                    String jsonString = new String(buffer, 0, read);
+                    Log.d("server", jsonString);
+                    JSONObject jsonObject = new JSONObject(jsonString);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                JSONreceiver(jsonObject);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
 
-
-                    while (sockets[0]!=null) {
-                        ObjectInputStream inputStream = new ObjectInputStream(new BufferedInputStream(sockets[0].getInputStream()));
-                        Log.d("server", "starting to receiving");
-                        ob = (SerializableObject) inputStream.readObject();
-                        Log.d("server",""+ob.SeekbarPosition);
-                        publishProgress(ob);
-//                        mediaPlayer.seekTo(ob.SeekbarPosition);
-//                        if (play_pause_flag == ob.play_pause_flag){
-//                            play_button_change();
-//                        }
-//                        bottomTextView.setText(ob.songName);
-//                        bottomTextView1.setText(ob.songName);
-//                        if(isCancelled())
-//                            break;
-                        Log.d("server", ob.SeekbarPosition + "");
-                    }
-                } catch (IOException | ClassNotFoundException ioException) {
-                    ioException.printStackTrace();
+                    Log.d("server", jsonObject.toString());
+                } catch (IOException | JSONException e) {
+                    e.printStackTrace();
                 }
 
-            return ob;
+            }
+        }
+    }
+
+    class SendSong extends Thread {
+        int ints;
+
+        SendSong(int position) {
+            this.ints = position;
+        }
+
+        @Override
+        public void run() {
+            try {
+
+                bufferSize = (int) SongList.get(ints).length();
+                JSONsender(7);
+                byte[] buf = new byte[bufferSize];
+                FileInputStream fi = new FileInputStream(SongList.get(ints));
+                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(songOutputStream);
+
+                while (fi.read(buf) > 0) {
+                    bufferedOutputStream.write(buf, 0, buf.length);
+                }
+                Log.d("server", "" + bufferSize);
+                fi.close();
+                Log.d("server", "song sended");
+
+            } catch (IOException | JSONException e) {
+                e.printStackTrace();
+            }
         }
 
     }
 
+    class ReceiveSong extends Thread {
+        @Override
+        public void run() {
+            File file = null;
+            try {
+
+                BufferedInputStream bufferedInputStream = new BufferedInputStream(songInputStream);
+                file = File.createTempFile("playnow", ".mp3", getApplicationContext().getCacheDir());
+                Log.d("server", "file created");
+                fis = new FileOutputStream(file);
+//                Log.d("server","stream writed");
+                byte[] buf = new byte[bufferSize];
+                int offset;
+                while ((offset = bufferedInputStream.read(buf)) != -1) {
+                    Log.d("server", "" + offset);
+                    Log.d("server", "writing file");
+                    fis.write(buf, 0, offset);
+                    Log.d("server", "" + file.length());
+                    Log.d("server", "songreceived");
+                    if (file.length()==bufferSize){
+                        File finalFile = file;
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                StartTheSong(finalFile,false);
+                            }
+                        });
+                        file = File.createTempFile("playnow", ".mp3", getApplicationContext().getCacheDir());
+                        fis = new FileOutputStream(file);
+                    }
+                }
+                fis.flush();
+                Log.d("server", "while loop braked");
+//                    StartTheSong(file, true);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+    }
 }

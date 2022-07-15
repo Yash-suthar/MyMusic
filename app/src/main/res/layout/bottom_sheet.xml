@@ -127,7 +127,7 @@
                     android:id="@+id/musicIcon"
                     android:layout_width="250dp"
                     android:layout_height="250dp"
-                    android:src="@drawable/pngtreemusical_note_festival_element_commercial_4054579" />
+                    android:src="@drawable/_695055_headset_music_player_icon" />
 
             </androidx.cardview.widget.CardView>
 

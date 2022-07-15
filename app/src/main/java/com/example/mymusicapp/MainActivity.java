@@ -6,6 +6,7 @@ import static android.view.View.GONE;
 
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -18,6 +19,7 @@ import android.Manifest;
 import android.accessibilityservice.AccessibilityService;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -26,8 +28,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.location.LocationManager;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
+import android.media.audiofx.AudioEffect;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -61,6 +65,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.tabs.TabItem;
 import com.google.android.material.tabs.TabLayout;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -81,6 +86,8 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -108,8 +115,8 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     private pageAdapter pAdapter;
     private BottomSheetBehavior behavior;
     private LinearLayout lv;
-    private ImageView nextBtn1, playBtn1, previousBtn, nextBtn, playBtn, bottomImageView, musicIcon, loopList, sync, menu_bar;
-    private int play_pause_flag = 0, loop_flag = 0, sync_flag = 0, port = 8000, bufferSize = 85000;
+    private ImageView nextBtn1, playBtn1, previousBtn, nextBtn, playBtn, bottomImageView, musicIcon, loopList, sync, equilizer_button,menu_bar;
+    private int play_pause_flag = 0, loop_flag = 0, sync_flag = 0, port = 8100, bufferSize = 85000;
     private ConstraintLayout cl1, cl2, cl;
     static MediaPlayer mediaPlayer;
     public static int songPosition, seekbarPosition;
@@ -132,7 +139,6 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     WifiP2pDevice[] deviceArray;
     private AutoCompleteTextView autoCompleteTextView;
     private CoordinatorLayout devicesListLayout;
-    //    Socket hostSong,clientSong,hostObject,clientObject;
     Socket SongSocket, JSONSocket;
     InputStream songInputStream, JSONInputStream;
     OutputStream songOutputStream, JSONOutputStream;
@@ -140,12 +146,8 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     String currentSongName;
     FileOutputStream fis;
     ArrayList<File> tempSong = new ArrayList<File>();
-
-    //    InputStream JSONinput_stream;
-//    OutputStream JSONoutput_stream;
-//    ObjectInputStream JSON_Object_input_stream;
-//    ObjectOutputStream JSON_Object_output_stream;
-//    receive_status receiveStatus;
+    ReceiveSong rs;
+    ReceiveJSON receiveJSON;
     @Override
     protected void onPause() {
         SharedPreferences sharedPreferences = getSharedPreferences("demo", MODE_PRIVATE);
@@ -156,15 +158,19 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         } else {
             editor.putInt("seekbarPosition", 0);
         }
+
         editor.apply();
         unregisterReceiver(mbroadcast);
+
         super.onPause();
     }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        equilizer_button = findViewById(R.id.equlizer);
         connected_device_name = findViewById(R.id.device_name);
         devicesListLayout = findViewById(R.id.wifilistlayout);
         autoCompleteTextView = findViewById(R.id.auto_complete_text);
@@ -210,12 +216,37 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
         intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+        equilizer_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(AudioEffect
+                        .ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL);
 
+                startActivity(intent);
+            }
+        });
         sync.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if (sync_flag == 0) {
-                    if (wifiManager.isWifiEnabled()) {
+                    Method[] wmMethods = wifiManager.getClass().getDeclaredMethods();
+                    boolean isWifiAPenabled=true;
+                    LocationManager lm = (LocationManager)getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+                    for (Method method: wmMethods) {
+                        if (method.getName().equals("isWifiApEnabled")) {
+
+                            try {
+                                isWifiAPenabled = (boolean) method.invoke(wifiManager);
+                            } catch (IllegalArgumentException e) {
+                                e.printStackTrace();
+                            } catch (IllegalAccessException e) {
+                                e.printStackTrace();
+                            } catch (InvocationTargetException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    if (wifiManager.isWifiEnabled() && !isWifiAPenabled && lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ) {
                         wifiP2pManager.removeGroup(channel, null);
                         Log.d("wifip2p", "hellow wifi on");
                         if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -242,17 +273,38 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 
                     } else {
 
-                        Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
-                        startActivity(intent);
-                        if (!wifiManager.isWifiEnabled()) {
+                        if (isWifiAPenabled){
                             Intent intent1 = new Intent();
                             intent1.setClassName("com.android.settings", "com.android.settings.TetherSettings");
                             startActivity(intent1);
+                            Toast.makeText(MainActivity.this, "turn of hotspot for proceed", Toast.LENGTH_SHORT).show();
                         }
+
+                        else if(!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                            // notify user
+                            final Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                            startActivity(intent);
+                            Toast.makeText(MainActivity.this, "Turn on location", Toast.LENGTH_SHORT).show();
+                        }
+
+
+                        else if (!wifiManager.isWifiEnabled()) {
+                            Intent intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                            startActivity(intent);
+                            Toast.makeText(MainActivity.this, "Turn on wifi", Toast.LENGTH_SHORT).show();
+                        }
+
                     }
 
 
                 } else {
+                    try {
+                        if (SongSocket!=null) {
+                            SocketDestroyer();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     if (wifiP2pManager != null && channel != null) {
                         wifiP2pManager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
                             @Override
@@ -355,16 +407,30 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             @Override
             public void onClick(View view) {
 
-                play_button_change();
+
 
                 if (device_connected_flag) {
                     try {
                         JSONsender(2);
-                    } catch (JSONException e) {
+                    } catch (JSONException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
-//                }
+                if (play_pause_flag == 0){
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            play_button_change();
+                        }
+                    }, 10);
+                }else{
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            play_button_change();
+                        }
+                    }, 35);
+                }
 
 
             }
@@ -374,15 +440,31 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             public void onClick(View view) {
 
 
-                play_button_change();
+
 
                 if (device_connected_flag) {
                     try {
                         JSONsender(2);
-                    } catch (JSONException e) {
+                    } catch (JSONException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
+                if (play_pause_flag == 0){
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            play_button_change();
+                        }
+                    }, 10);
+                }else{
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            play_button_change();
+                        }
+                    }, 35);
+                }
+
 
             }
         });
@@ -392,7 +474,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 if (!sendMode && device_connected_flag) {
                     try {
                         JSONsender(4);
-                    } catch (JSONException e) {
+                    } catch (JSONException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 }else {
@@ -411,7 +493,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 if (!sendMode && device_connected_flag) {
                     try {
                         JSONsender(4);
-                    } catch (JSONException e) {
+                    } catch (JSONException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 }else {
@@ -431,7 +513,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 if (!sendMode && device_connected_flag) {
                     try {
                         JSONsender(5);
-                    } catch (JSONException e) {
+                    } catch (JSONException | InterruptedException e) {
                         e.printStackTrace();
                     }
                 }else {
@@ -454,7 +536,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                     if (device_connected_flag){
                         try {
                             JSONsender(3);
-                        } catch (JSONException e) {
+                        } catch (JSONException | InterruptedException e) {
                             e.printStackTrace();
                         }
                     }
@@ -543,11 +625,11 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             devicesListLayout.setVisibility(GONE);
             sync.setVisibility(View.VISIBLE);
             final InetAddress groupOwnerAddress = wifiP2pInfo.groupOwnerAddress;
-            if (wifiP2pInfo.groupFormed && wifiP2pInfo.isGroupOwner) {
+            if ( wifiP2pInfo.isGroupOwner) {
                 HostSocket hostSocket = new HostSocket();
                 hostSocket.execute();
                 Toast.makeText(MainActivity.this, "you are host", Toast.LENGTH_SHORT).show();
-            } else if (wifiP2pInfo.groupFormed) {
+            } else {
                 ClientSocket clientSocket = new ClientSocket();
                 clientSocket.execute(groupOwnerAddress);
                 Toast.makeText(MainActivity.this, "you are client", Toast.LENGTH_SHORT).show();
@@ -555,11 +637,14 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         }
     };
 
-    public void ondisconnect() {
+    public void ondisconnect() throws IOException {
         sync.setImageResource(R.drawable.ic_baseline_sync_24);
         connected_device_name.setVisibility(GONE);
         sync_flag = 0;
         device_connected_flag = false;
+        if (SongSocket !=null){
+            SocketDestroyer();
+        }
     }
 
     private void blurbackground() {
@@ -631,7 +716,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 
                         try {
                             JSONsender(8);
-                        } catch (JSONException e) {
+                        } catch (JSONException | InterruptedException e) {
                             e.printStackTrace();
                         }
 
@@ -687,7 +772,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             sendMode = true;
             try {
                 JSONsender(6);
-            } catch (JSONException e) {
+            } catch (JSONException | InterruptedException e) {
                 e.printStackTrace();
             }
         }
@@ -753,7 +838,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
     }
 
 
-    private void JSONsender(int whatChanged) throws JSONException {
+    private void JSONsender(int whatChanged) throws JSONException, InterruptedException {
         JSONObject ob = new JSONObject();
         switch (whatChanged) {
             //songNaame changed
@@ -811,12 +896,12 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
         Log.d("server", "object sending");
     }
 
-    private void JSONreceiver(JSONObject ob) throws JSONException {
+    private void JSONreceiver(JSONObject ob) throws JSONException, InterruptedException {
         switch (ob.getInt("whatChanged")) {
             //songNaame changed
             case 1: {
-                bottomTextView.setText(ob.getString("songName"));
-                bottomTextView1.setText(ob.getString("songName"));
+                bottomTextView.setText(ob.getString("SongName"));
+                bottomTextView1.setText(ob.getString("SongName"));
                 break;
             }
             //playbutton changed
@@ -844,7 +929,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             //sendmode changed
             case 6: {
 //                ob.put("whatChanged", 6);
-              sendMode = ob.getBoolean("SongMode");
+                sendMode = ob.getBoolean("SongMode");
                 break;
             }
             //songSize
@@ -855,131 +940,19 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 break;
             }
             //prepared mediaplayer
-            case 8:{
+            case 8: {
                 JSONsender(1);
                 JSONsender(3);
                 playBtn.performClick();
             }
 
         }
-//        mediaPlayer.seekTo(ob.getInt("SeekbarPosition"));
-//        if (ob.getInt("play_pause_flag")==play_pause_flag){
-//        play_button_change();
-//        }else{
-//            playBtn1.setImageResource(R.drawable.play30dp);
-//            playBtn.setImageResource(R.drawable.playbutton);
-//            play_pause_flag = 0;
-//            mediaPlayer.pause();
-//        }
-//        bottomTextView.setText(ob.getString("songName"));
-//        bottomTextView1.setText(ob.getString("songName"));
     }
-
-//    public class SendSong extends AsyncTask<Integer, Void, Void> {
-//
-//        @Override
-//        protected Void doInBackground(Integer... ints) {
-//            try {
-//                bufferSize = (int) SongList.get(ints[0]).length();
-//                JSONsender(7);
-//                byte[] buf = new byte[bufferSize];
-//
-////                OutputStream outputStream =  socket.getOutputStream();
-////                Log.d("server", "socket stream output");
-//                FileInputStream fi = new FileInputStream(SongList.get(ints[0]));
-//                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(songOutputStream);
-////                Log.d("server", "file stream created");
-//
-//                while (fi.read(buf) > 0) {
-//
-////                    Log.d("server", "file sending");
-////                    outputStream.write(buf, 0, buf.length);
-//                    bufferedOutputStream.write(buf,0, buf.length);
-//
-//                }
-//                Log.d("server", "" + bufferSize);
-////                bufferedOutputStream.close();
-////                outputStream.flush();
-////                outputStream.close();
-//                fi.close();
-//                Log.d("server", "song sended");
-//            } catch (IOException | JSONException e) {
-//                e.printStackTrace();
-//            }
-//            return null;
-//        }
-//    }
-//
-//    public class ReceiveSong extends AsyncTask<Socket, Void, File> {
-//
-//        @Override
-//        protected File doInBackground(Socket... sockets) {
-////            BufferedInputStream Objectstream = new BufferedInputStream(JSONInputStream);
-////            int read;
-////            byte[] buffer = new byte[2048];
-////            while(true){
-////                try {
-////                    if (!((read = Objectstream.read(buffer)) != -1)) break;
-////                    String jsonString = new String(buffer,0,read);
-////                    Log.d("server",jsonString);
-////                    JSONObject jsonObject = new JSONObject(jsonString);
-////                    runOnUiThread(new Runnable() {
-////                        @Override
-////                        public void run() {
-////                            try {
-////                                JSONreceiver(jsonObject);
-////                            } catch (JSONException e) {
-////                                e.printStackTrace();
-////                            }
-////                        }
-////                    });
-////
-////                    Log.d("server",jsonObject.toString());
-////                } catch (IOException | JSONException e) {
-////                    e.printStackTrace();
-////                }
-////
-////            }
-////                    outputStream = client_socket.getOutputStream();
-//            File file = null;
-//            try {
-//
-//                BufferedInputStream bufferedInputStream = new BufferedInputStream(songInputStream);
-//                file = File.createTempFile("playnow", ".mp3", getApplicationContext().getCacheDir());
-//                Log.d("server", "file created");
-//                FileOutputStream fis = new FileOutputStream(file);
-////                Log.d("server","stream writed");
-//                byte[] buf = new byte[bufferSize];
-//                int offset;
-//                while ((offset = bufferedInputStream.read(buf)) != -1) {
-//                    Log.d("server", "" + offset);
-//                    Log.d("server", "writing file");
-//                    fis.write(buf, 0, offset);
-//                    Log.d("server", "" + file.length());
-//                    Log.d("server", "songreceived");
-//                }
-//                fis.flush();
-//                Log.d("server","while loop braked");
-////                    StartTheSong(file, true);
-//
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//
-//            return file;
-//        }
-//
-//
-//        @Override
-//        protected void onPostExecute(File file) {
-////            StartTheSong(file, true);
-//        }
-//    }
 
     public class ClientSocket extends AsyncTask<InetAddress, Void, Void> {
         @Override
         protected void onPreExecute() {
-//            Log.d("server", "strting to connect");
+            Log.d("server", "strting to connect");
         }
 
         @Override
@@ -988,12 +961,13 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             try {
                 SongSocket = new Socket();
                 SongSocket.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
-                Log.d("server", "hostSong socket Connected!");
+                Log.d("server", "Song socket Connected!");
                 songInputStream = SongSocket.getInputStream();
                 songOutputStream = SongSocket.getOutputStream();
 
                 JSONSocket = new Socket();
                 JSONSocket.connect(new InetSocketAddress(inetAddresses[0], port), 20000);
+                Log.d("server", "JSON socket Connected!");
                 JSONInputStream = JSONSocket.getInputStream();
                 JSONOutputStream = JSONSocket.getOutputStream();
 
@@ -1012,9 +986,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             if (mediaPlayer.isPlaying()){
                 play_button_change();
             }
-            ReceiveJSON receiveJSON = new ReceiveJSON();
+            receiveJSON = new ReceiveJSON();
             receiveJSON.start();
-            ReceiveSong rs = new ReceiveSong();
+            rs = new ReceiveSong();
             rs.start();
         }
     }
@@ -1043,6 +1017,8 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 JSONInputStream = JSONSocket.getInputStream();
                 JSONOutputStream = JSONSocket.getOutputStream();
 
+                serverSocket.close();
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -1056,9 +1032,9 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
             if (mediaPlayer.isPlaying()){
                 play_button_change();
             }
-            ReceiveJSON receiveJSON = new ReceiveJSON();
+            receiveJSON = new ReceiveJSON();
             receiveJSON.start();
-            ReceiveSong rs = new ReceiveSong();
+            rs = new ReceiveSong();
             rs.start();
             SendSong sendSong = new SendSong(songPosition);
             sendSong.start();
@@ -1162,6 +1138,22 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 //        }
 //
 //    }
+    public void SocketDestroyer() throws IOException {
+        rs.interrupt();
+        receiveJSON.interrupt();
+        songOutputStream.close();
+        JSONOutputStream.close();
+        songInputStream.close();
+        JSONInputStream.close();
+        SongSocket.close();
+        JSONSocket.close();
+        SongSocket = null;
+        JSONSocket= null;
+        songInputStream = null;
+        songOutputStream= null;
+        JSONInputStream = null;
+        JSONOutputStream = null;
+    }
 
     class SendJSON extends Thread {
         JSONObject jsonObject;
@@ -1199,7 +1191,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                         public void run() {
                             try {
                                 JSONreceiver(jsonObject);
-                            } catch (JSONException e) {
+                            } catch (JSONException | InterruptedException e) {
                                 e.printStackTrace();
                             }
                         }
@@ -1238,7 +1230,7 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
                 fi.close();
                 Log.d("server", "song sended");
 
-            } catch (IOException | JSONException e) {
+            } catch (IOException | JSONException | InterruptedException e) {
                 e.printStackTrace();
             }
         }
@@ -1286,5 +1278,15 @@ public class MainActivity extends AppCompatActivity implements frag1.SendDataInt
 
         }
 
+    }
+
+    @Override
+    protected void onDestroy() {
+        try {
+            SocketDestroyer();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        super.onDestroy();
     }
 }

@@ -5,13 +5,32 @@
       <map>
         <entry key="app/src/main/res/drawable/_695054_music_music_player_player_previous_icon.xml" value="0.295" />
         <entry key="app/src/main/res/drawable/collpasebackground.xml" value="0.202" />
+        <entry key="app/src/main/res/drawable/currentsongbackground.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_equalizer_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_keyboard_arrow_down_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_more_vert_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_music_note_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_repeat_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_repeat_one_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_shuffle_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_skip_next_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_sync_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/ic_baseline_sync_disabled_24.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/musiciconbackground.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/next30dp.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/pause30dp.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/pausebutton.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/play30dp.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/playbutton.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/previousbutton.xml" value="0.206" />
+        <entry key="app/src/main/res/drawable/songbackground.xml" value="0.206" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.264" />
         <entry key="app/src/main/res/layout/bottom_sheet.xml" value="0.128" />
         <entry key="app/src/main/res/layout/fragment_frag1.xml" value="0.29030797101449274" />
         <entry key="app/src/main/res/layout/fragment_frag2.xml" value="0.29030797101449274" />
         <entry key="app/src/main/res/layout/fragment_frag3.xml" value="0.29030797101449274" />
         <entry key="app/src/main/res/layout/fragment_frag4.xml" value="0.1484375" />
-        <entry key="app/src/main/res/layout/list_view.xml" value="0.2957427536231884" />
+        <entry key="app/src/main/res/layout/list_view.xml" value="0.4" />
         <entry key="app/src/main/res/layout/menu_bottomsheet.xml" value="0.2957427536231884" />
       </map>
     </option>

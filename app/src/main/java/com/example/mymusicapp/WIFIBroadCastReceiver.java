@@ -13,6 +13,8 @@ import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 
+import java.io.IOException;
+
 public class WIFIBroadCastReceiver extends BroadcastReceiver {
     private final WifiP2pManager wifiP2pManager;
     private final  WifiP2pManager.Channel channel;
@@ -29,11 +31,11 @@ public class WIFIBroadCastReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         if (WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION.equals(action)) {
             int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
-            Log.d("wifip2p", "" + state);
+//            Log.d("wifip2p", "" + state);
             if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
                 Toast.makeText(context, "Wifi enabled", Toast.LENGTH_SHORT).show();
             } else if (state == WifiP2pManager.WIFI_P2P_STATE_DISABLED) {
-                Toast.makeText(context, "turn on wifi for sync", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(context, "turn on wifi for sync", Toast.LENGTH_SHORT).show();
 
             }
         } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
@@ -63,8 +65,15 @@ public class WIFIBroadCastReceiver extends BroadcastReceiver {
              }
 
          }else{
-             mainActivity.ondisconnect();
-             Toast.makeText(context, "device disconnected", Toast.LENGTH_SHORT).show();
+            if (!bool) {
+                try {
+                    mainActivity.ondisconnect();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                bool = true;
+                Toast.makeText(context, "device disconnected", Toast.LENGTH_SHORT).show();
+            }
          }
       }else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)){
           //do something

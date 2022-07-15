@@ -1,13 +1,16 @@
 package com.example.mymusicapp;
 
+import static android.content.Context.MODE_PRIVATE;
 import static android.view.View.GONE;
 
 import android.Manifest;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -31,6 +34,8 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.airbnb.lottie.LottieAnimationView;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.MultiplePermissionsReport;
 import com.karumi.dexter.PermissionToken;
@@ -43,6 +48,7 @@ import com.karumi.dexter.listener.single.PermissionListener;
 import org.w3c.dom.Text;
 
 import java.io.File;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,8 +59,9 @@ import java.util.List;
  * create an instance of this fragment.
  */
 public class frag1 extends Fragment {
+
     String[] items;
-    public static ArrayList<File> Song_Files;
+    public static ArrayList<File> Song_Files= new ArrayList<File>();
     //    public static int changerowindex = MainActivity.songPosition;
 //    public static int position;
     private RecyclerViewAdapter recyclerViewAdapter;
@@ -69,6 +76,24 @@ public class frag1 extends Fragment {
     private String mParam1;
     private String mParam2;
 
+    @Override
+    public void onPause() {
+        SharedPreferences sharedPreferences = getContext().getSharedPreferences("demo", MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        Gson gson = new Gson();
+        String jsonString = gson.toJson(Song_Files);
+        editor.putString("SongList",jsonString);
+        editor.apply();
+        super.onPause();
+    }
+
+    public void LoadData(){
+        SharedPreferences sharedPreferences = getContext().getSharedPreferences("demo", MODE_PRIVATE);
+        Gson gson = new Gson();
+        String jsonstring = sharedPreferences.getString("SongList",null);
+        Type type = new TypeToken<ArrayList<File>>() {}.getType();
+        Song_Files = gson.fromJson(jsonstring,type);
+    }
 
     public frag1() {
         // Required empty public constructor
@@ -91,7 +116,7 @@ public class frag1 extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        LoadData();
         if (getArguments() != null) {
             mParam1 = getArguments().getString(ARG_PARAM1);
             mParam2 = getArguments().getString(ARG_PARAM2);
@@ -109,26 +134,6 @@ public class frag1 extends Fragment {
         animationView = view.findViewById(R.id.lottieAnimationView);
         listView.setHasFixedSize(true);
         listView.setLayoutManager(new LinearLayoutManager(this.getContext()));
-        // Inflate the layout for this fragment
-
-//        Dexter.withContext(getContext()).withPermission(Manifest.permission.READ_EXTERNAL_STORAGE).withListener(new PermissionListener() {
-//            @Override
-//            public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
-//                Asynctask at = new Asynctask();
-//                at.dothis(listView,SongNotFound);
-//                at.execute();
-//            }
-//
-//            @Override
-//            public void onPermissionDenied(PermissionDeniedResponse permissionDeniedResponse) {
-//
-//            }
-//
-//            @Override
-//            public void onPermissionRationaleShouldBeShown(PermissionRequest permissionRequest, PermissionToken permissionToken) {
-//                permissionToken.continuePermissionRequest();
-//            }
-//        }).check();
         Dexter.withContext(getActivity())
                 .withPermissions(
                         Manifest.permission.READ_EXTERNAL_STORAGE,
@@ -137,9 +142,16 @@ public class frag1 extends Fragment {
                 ).withListener(new MultiplePermissionsListener() {
                     @Override public void onPermissionsChecked(MultiplePermissionsReport report) {
                         if (report.areAllPermissionsGranted()){
-                            Asynctask at = new Asynctask();
-                            at.dothis(listView,SongNotFound);
-                            at.execute();
+                            if (Song_Files!=null){
+                                recyclerViewAdapter = new RecyclerViewAdapter(getContext(), Song_Files);
+                                listView.setAdapter(recyclerViewAdapter);
+                                sendDataInterface.SendData(Song_Files, 0, false, recyclerViewAdapter);
+
+                            }
+                                Asynctask at = new Asynctask();
+                                at.dothis(listView, SongNotFound);
+                                at.execute();
+
                         }
                     }
                     @Override public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
@@ -162,33 +174,31 @@ public class frag1 extends Fragment {
 
         @Override
         protected void onPreExecute() {
-            animationView.setVisibility(View.VISIBLE);
+            if (recyclerViewAdapter==null){
+                animationView.setVisibility(View.VISIBLE);
+            }
         }
 
         @Override
         protected Void doInBackground(Void... voids) {
             ArrayList<File> all_songs = fetch_Song(Environment.getExternalStorageDirectory());
             Song_Files = all_songs;
-//            if (!all_songs.isEmpty()) {
-//
-//
-//                items = new String[all_songs.size()];
-//
-//                for (int i = 0; i < all_songs.size(); i++) {
-//                    items[i] = all_songs.get(i).getName().toString().replace(".mp3", "");
-////                    Log.d("stringtab", items[i]);
-//                }
-//            }
+
+
             return null;
         }
 
         @Override
         protected void onPostExecute(Void unused) {
             animationView.setVisibility(GONE);
-            if (!Song_Files.isEmpty()){
-                sendDataInterface.SendData(Song_Files, 0, false, recyclerViewAdapter);
+            if (!Song_Files.isEmpty() && recyclerViewAdapter != null){
+                recyclerViewAdapter.notifyDataSetChanged();
+            }
+            else if (!Song_Files.isEmpty() && recyclerViewAdapter == null){
                 recyclerViewAdapter = new RecyclerViewAdapter(getContext(), Song_Files);
                 listview.setAdapter(recyclerViewAdapter);
+                sendDataInterface.SendData(Song_Files, 0, false, recyclerViewAdapter);
+
             } else{
                 listview.setVisibility(GONE);
                 textView.setVisibility(View.VISIBLE);
@@ -255,15 +265,18 @@ public class frag1 extends Fragment {
             return new ViewHolder(view);
         }
 
+
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             TextView Listsongtext = holder.itemView.findViewById(R.id.ListSongText);
             Listsongtext.setText(songList.get(position).getName().toString().replace(".mp3", ""));
             RelativeLayout relativeLayout = holder.itemView.findViewById(R.id.relativeLayout);
             if (MainActivity.songPosition == position) {
-                relativeLayout.setBackgroundResource(R.color.white);
+                relativeLayout.setBackgroundResource(R.drawable.currentsongbackground);
+                Listsongtext.setTextColor(getResources().getColor(R.color.black));
             } else {
-                relativeLayout.setBackgroundResource(R.color.black);
+                relativeLayout.setBackgroundResource(R.color.blackcoloroverlay);
+
             }
         }
 
